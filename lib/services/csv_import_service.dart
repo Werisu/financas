@@ -2,6 +2,7 @@ import 'package:csv/csv.dart';
 import 'package:financas/models/category.dart';
 import 'package:financas/models/expense.dart';
 import 'package:financas/services/category_suggestion_service.dart';
+import 'package:financas/services/installment_service.dart';
 import 'package:financas/utils/formatters.dart';
 import 'package:uuid/uuid.dart';
 
@@ -32,11 +33,17 @@ class ParsedCsvExpense {
 }
 
 class CsvImportService {
-  CsvImportService({CategorySuggestionService? suggestionService})
-      : _suggestion = suggestionService ?? CategorySuggestionService();
+  CsvImportService({
+    CategorySuggestionService? suggestionService,
+    InstallmentService? installmentService,
+  })  : _suggestion = suggestionService ?? CategorySuggestionService(),
+        _installments = installmentService ?? InstallmentService();
 
   final CategorySuggestionService _suggestion;
+  final InstallmentService _installments;
   final _uuid = const Uuid();
+
+  InstallmentService get installments => _installments;
 
   List<List<String>> parseCsv(String content) {
     final normalized =
@@ -154,8 +161,9 @@ class CsvImportService {
   List<Expense> toExpenses({
     required List<ParsedCsvExpense> parsed,
     required String? cardId,
+    bool expandInstallments = true,
   }) {
-    return parsed
+    final baseExpenses = parsed
         .map(
           (item) => Expense(
             id: _uuid.v4(),
@@ -168,5 +176,22 @@ class CsvImportService {
           ),
         )
         .toList();
+
+    if (!expandInstallments) return baseExpenses;
+    return _installments.expandMany(baseExpenses);
+  }
+
+  int countFutureInstallments(List<ParsedCsvExpense> parsed) {
+    var count = 0;
+    for (final item in parsed) {
+      final info = _installments.parseFromDescription(item.description);
+      if (info != null) {
+        count += info.remaining;
+        continue;
+      }
+      final times = _installments.parseTimesOnly(item.description);
+      if (times != null) count += times - 1;
+    }
+    return count;
   }
 }

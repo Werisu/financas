@@ -11,6 +11,9 @@ class Expense {
     required this.categoryId,
     this.cardId,
     this.origin = ExpenseOrigin.manual,
+    this.installmentGroupId,
+    this.installmentNumber,
+    this.installmentTotal,
   });
 
   final String id;
@@ -20,6 +23,17 @@ class Expense {
   final String categoryId;
   final String? cardId;
   final ExpenseOrigin origin;
+  final String? installmentGroupId;
+  final int? installmentNumber;
+  final int? installmentTotal;
+
+  bool get isInstallment =>
+      installmentTotal != null && installmentTotal! > 1;
+
+  String? get installmentLabel {
+    if (!isInstallment || installmentNumber == null) return null;
+    return '${installmentNumber!.toString().padLeft(2, '0')}/${installmentTotal!.toString().padLeft(2, '0')}';
+  }
 
   Expense copyWith({
     String? id,
@@ -29,6 +43,9 @@ class Expense {
     String? categoryId,
     String? cardId,
     ExpenseOrigin? origin,
+    String? installmentGroupId,
+    int? installmentNumber,
+    int? installmentTotal,
   }) {
     return Expense(
       id: id ?? this.id,
@@ -38,6 +55,9 @@ class Expense {
       categoryId: categoryId ?? this.categoryId,
       cardId: cardId ?? this.cardId,
       origin: origin ?? this.origin,
+      installmentGroupId: installmentGroupId ?? this.installmentGroupId,
+      installmentNumber: installmentNumber ?? this.installmentNumber,
+      installmentTotal: installmentTotal ?? this.installmentTotal,
     );
   }
 
@@ -49,6 +69,9 @@ class Expense {
         'categoryId': categoryId,
         'cardId': cardId,
         'origin': origin.name,
+        'installmentGroupId': installmentGroupId,
+        'installmentNumber': installmentNumber,
+        'installmentTotal': installmentTotal,
       };
 
   factory Expense.fromMap(Map<dynamic, dynamic> map) => Expense(
@@ -62,6 +85,9 @@ class Expense {
           (e) => e.name == map['origin'],
           orElse: () => ExpenseOrigin.manual,
         ),
+        installmentGroupId: map['installmentGroupId'] as String?,
+        installmentNumber: (map['installmentNumber'] as num?)?.toInt(),
+        installmentTotal: (map['installmentTotal'] as num?)?.toInt(),
       );
 }
 

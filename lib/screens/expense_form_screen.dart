@@ -1,5 +1,6 @@
 import 'package:financas/models/expense.dart';
 import 'package:financas/providers/finance_providers.dart';
+import 'package:financas/services/installment_service.dart';
 import 'package:financas/utils/formatters.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -17,11 +18,13 @@ class ExpenseFormScreen extends ConsumerStatefulWidget {
 
 class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _installments = InstallmentService();
   late final TextEditingController _description;
   late final TextEditingController _amount;
   late DateTime _date;
   String? _categoryId;
   String? _cardId;
+  int _installmentCount = 1;
 
   bool get isEditing => widget.expense != null;
 
@@ -31,11 +34,14 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
     final expense = widget.expense;
     _description = TextEditingController(text: expense?.description ?? '');
     _amount = TextEditingController(
-      text: expense == null ? '' : expense.amount.toStringAsFixed(2).replaceAll('.', ','),
+      text: expense == null
+          ? ''
+          : expense.amount.toStringAsFixed(2).replaceAll('.', ','),
     );
     _date = expense?.date ?? DateTime.now();
     _categoryId = expense?.categoryId;
     _cardId = expense?.cardId;
+    _installmentCount = expense?.installmentTotal ?? 1;
   }
 
   @override
@@ -50,7 +56,7 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
       context: context,
       initialDate: _date,
       firstDate: DateTime(2018),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
+      lastDate: DateTime.now().add(const Duration(days: 365 * 3)),
       locale: const Locale('pt', 'BR'),
     );
     if (picked != null) setState(() => _date = picked);
@@ -63,7 +69,7 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
     final amount = parseBrazilianAmount(_amount.text);
     if (amount == null) return;
 
-    final expense = Expense(
+    final base = Expense(
       id: widget.expense?.id ?? const Uuid().v4(),
       description: _description.text.trim(),
       amount: amount,
@@ -71,9 +77,24 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
       categoryId: categoryId,
       cardId: _cardId,
       origin: widget.expense?.origin ?? ExpenseOrigin.manual,
+      installmentGroupId: widget.expense?.installmentGroupId,
+      installmentNumber: widget.expense?.installmentNumber,
+      installmentTotal: widget.expense?.installmentTotal,
     );
 
-    await ref.read(expensesProvider.notifier).save(expense);
+    if (isEditing) {
+      await ref.read(expensesProvider.notifier).save(base);
+    } else if (_installmentCount > 1) {
+      final expanded = _installments.expandExpense(
+        base: base,
+        forceTotalInstallments: _installmentCount,
+      );
+      await ref.read(expensesProvider.notifier).saveAll(expanded);
+    } else {
+      final expanded = _installments.expandExpense(base: base);
+      await ref.read(expensesProvider.notifier).saveAll(expanded);
+    }
+
     if (mounted) Navigator.of(context).pop();
   }
 
@@ -111,8 +132,9 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
                 TextFormField(
                   controller: _amount,
                   decoration: const InputDecoration(
-                    labelText: 'Valor',
+                    labelText: 'Valor da parcela',
                     prefixText: 'R\$ ',
+                    helperText: 'Se parcelar, use o valor de cada mês',
                   ),
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
@@ -130,7 +152,7 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
                 const SizedBox(height: 16),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('Data'),
+                  title: const Text('Data da 1ª parcela'),
                   subtitle: Text(formatDate(_date)),
                   trailing: const Icon(Icons.calendar_today_outlined),
                   onTap: _pickDate,
@@ -169,11 +191,39 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
                   ],
                   onChanged: (value) => setState(() => _cardId = value),
                 ),
+                if (!isEditing) ...[
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<int>(
+                    value: _installmentCount,
+                    decoration: const InputDecoration(
+                      labelText: 'Parcelar em',
+                      helperText:
+                          'Gera um lançamento por mês automaticamente',
+                    ),
+                    items: [
+                      for (var i = 1; i <= 24; i++)
+                        DropdownMenuItem(
+                          value: i,
+                          child: Text(i == 1 ? 'À vista (1x)' : '$i vezes'),
+                        ),
+                    ],
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setState(() => _installmentCount = value);
+                    },
+                  ),
+                ],
                 const SizedBox(height: 28),
                 FilledButton.icon(
                   onPressed: _save,
                   icon: const Icon(Icons.check),
-                  label: Text(isEditing ? 'Salvar alterações' : 'Adicionar gasto'),
+                  label: Text(
+                    isEditing
+                        ? 'Salvar alterações'
+                        : _installmentCount > 1
+                            ? 'Adicionar $_installmentCount parcelas'
+                            : 'Adicionar gasto',
+                  ),
                 ),
               ],
             ),
