@@ -112,12 +112,26 @@ class InstallmentService {
 
     for (var number = current; number <= total; number++) {
       final monthsAhead = number - current;
-      final date = addMonths(base.date, monthsAhead);
+      final hasStatement = base.statementDueMonth != null;
+      final statementDue = hasStatement
+          ? addMonths(
+              DateTime(
+                base.statementDueMonth!.year,
+                base.statementDueMonth!.month,
+              ),
+              monthsAhead,
+            )
+          : null;
+      // Com fatura: mantém a data da compra original e avança o vencimento.
+      // Sem fatura: avança a data do lançamento mês a mês.
+      final date =
+          hasStatement ? base.date : addMonths(base.date, monthsAhead);
 
       expenses.add(
         Expense(
           id: number == current ? base.id : _uuid.v4(),
-          description: descriptionForInstallment(base.description, number, total),
+          description:
+              descriptionForInstallment(base.description, number, total),
           amount: base.amount,
           date: date,
           categoryId: base.categoryId,
@@ -126,6 +140,7 @@ class InstallmentService {
           installmentGroupId: groupId,
           installmentNumber: number,
           installmentTotal: total,
+          statementDueMonth: statementDue,
         ),
       );
     }
@@ -135,25 +150,29 @@ class InstallmentService {
 
   List<Expense> expandMany(List<Expense> expenses) {
     final result = <Expense>[];
-    final seenKeys = <String>{};
+    final futureKeys = <String>{};
 
     for (final expense in expenses) {
       final expanded = expandExpense(base: expense);
-      for (final item in expanded) {
-        final key = _dedupeKey(item);
-        if (seenKeys.contains(key)) continue;
-        seenKeys.add(key);
+      if (expanded.isEmpty) continue;
+
+      // Sempre mantém o lançamento original do CSV (não deduplica linhas da fatura).
+      result.add(expanded.first);
+
+      // Só evita duplicar parcelas FUTURAS geradas automaticamente.
+      for (var i = 1; i < expanded.length; i++) {
+        final item = expanded[i];
+        final key = _futureDedupeKey(item);
+        if (futureKeys.contains(key)) continue;
+        futureKeys.add(key);
         result.add(item);
       }
     }
     return result;
   }
 
-  String _dedupeKey(Expense expense) {
-    final base = expense.description
-        .toUpperCase()
-        .replaceAll(_labelPattern, '')
-        .replaceAll(RegExp(r'\s+'), '');
-    return '${expense.date.year}-${expense.date.month}|${expense.amount.toStringAsFixed(2)}|$base|${expense.cardId ?? ''}';
+  String _futureDedupeKey(Expense expense) {
+    final billing = expense.billingMonth;
+    return '${expense.installmentGroupId}|${billing.year}-${billing.month}|${expense.installmentNumber}|${expense.amount.toStringAsFixed(2)}';
   }
 }

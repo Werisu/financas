@@ -161,8 +161,13 @@ class CsvImportService {
   List<Expense> toExpenses({
     required List<ParsedCsvExpense> parsed,
     required String? cardId,
+    DateTime? statementDueMonth,
     bool expandInstallments = true,
   }) {
+    final dueMonth = statementDueMonth == null
+        ? null
+        : DateTime(statementDueMonth.year, statementDueMonth.month);
+
     final baseExpenses = parsed
         .map(
           (item) => Expense(
@@ -173,6 +178,7 @@ class CsvImportService {
             categoryId: item.suggestedCategoryId,
             cardId: cardId,
             origin: ExpenseOrigin.import,
+            statementDueMonth: dueMonth,
           ),
         )
         .toList();

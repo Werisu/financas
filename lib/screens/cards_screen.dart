@@ -18,6 +18,9 @@ class CardsScreen extends ConsumerWidget {
     final closingController = TextEditingController(
       text: card?.closingDay?.toString() ?? '',
     );
+    final dueController = TextEditingController(
+      text: card?.dueDay?.toString() ?? '',
+    );
 
     final saved = await showDialog<bool>(
       context: context,
@@ -32,7 +35,7 @@ class CardsScreen extends ConsumerWidget {
                 controller: nameController,
                 decoration: const InputDecoration(
                   labelText: 'Nome / bandeira',
-                  hintText: 'Ex.: Nubank, Inter, Itaú',
+                  hintText: 'Ex.: PicPay, Nubank, Inter',
                 ),
               ),
               const SizedBox(height: 12),
@@ -47,8 +50,17 @@ class CardsScreen extends ConsumerWidget {
               TextField(
                 controller: closingController,
                 decoration: const InputDecoration(
-                  labelText: 'Dia de fechamento (opcional)',
-                  hintText: '1 a 31',
+                  labelText: 'Dia de fechamento',
+                  hintText: 'Ex.: 29',
+                ),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: dueController,
+                decoration: const InputDecoration(
+                  labelText: 'Dia de vencimento',
+                  hintText: 'Ex.: 5',
                 ),
                 keyboardType: TextInputType.number,
               ),
@@ -73,6 +85,7 @@ class CardsScreen extends ConsumerWidget {
 
     if (saved == true) {
       final closing = int.tryParse(closingController.text.trim());
+      final due = int.tryParse(dueController.text.trim());
       await ref.read(cardsProvider.notifier).save(
             CreditCard(
               id: card?.id ?? const Uuid().v4(),
@@ -83,6 +96,7 @@ class CardsScreen extends ConsumerWidget {
               closingDay: closing != null && closing >= 1 && closing <= 31
                   ? closing
                   : null,
+              dueDay: due != null && due >= 1 && due <= 31 ? due : null,
             ),
           );
     }
@@ -90,6 +104,7 @@ class CardsScreen extends ConsumerWidget {
     nameController.dispose();
     nicknameController.dispose();
     closingController.dispose();
+    dueController.dispose();
   }
 
   @override
@@ -133,6 +148,7 @@ class CardsScreen extends ConsumerWidget {
                         card.name,
                         if (card.closingDay != null)
                           'Fecha dia ${card.closingDay}',
+                        if (card.dueDay != null) 'Vence dia ${card.dueDay}',
                       ].join(' · '),
                     ),
                     trailing: Row(

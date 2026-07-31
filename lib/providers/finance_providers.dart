@@ -143,13 +143,22 @@ final selectedMonthProvider = StateProvider<DateTime>((ref) {
   return DateTime(now.year, now.month);
 });
 
+/// true = visão por fatura (vencimento); false = mês da compra
+final invoiceViewProvider = StateProvider<bool>((ref) => true);
+
 final expenseFilterCategoryProvider = StateProvider<String?>((ref) => null);
 final expenseFilterCardProvider = StateProvider<String?>((ref) => null);
 
 final monthExpensesProvider = Provider<List<Expense>>((ref) {
   final expenses = ref.watch(expensesProvider);
   final month = ref.watch(selectedMonthProvider);
-  return expenses.where((expense) => isSameMonth(expense.date, month)).toList();
+  final invoiceView = ref.watch(invoiceViewProvider);
+
+  return expenses.where((expense) {
+    final refMonth =
+        invoiceView ? expense.billingMonth : DateTime(expense.date.year, expense.date.month);
+    return isSameMonth(refMonth, month);
+  }).toList();
 });
 
 final filteredExpensesProvider = Provider<List<Expense>>((ref) {
@@ -164,6 +173,32 @@ final filteredExpensesProvider = Provider<List<Expense>>((ref) {
   }).toList();
 });
 
+final statementNewPurchasesProvider = Provider<List<Expense>>((ref) {
+  return ref
+      .watch(filteredExpensesProvider)
+      .where((e) => e.isNewPurchaseOnStatement)
+      .toList();
+});
+
+final statementCarryoversProvider = Provider<List<Expense>>((ref) {
+  return ref
+      .watch(filteredExpensesProvider)
+      .where((e) => e.isCarryoverInstallment)
+      .toList();
+});
+
+final statementNewPurchasesTotalProvider = Provider<double>((ref) {
+  return ref
+      .watch(statementNewPurchasesProvider)
+      .fold(0.0, (sum, e) => sum + e.amount);
+});
+
+final statementCarryoversTotalProvider = Provider<double>((ref) {
+  return ref
+      .watch(statementCarryoversProvider)
+      .fold(0.0, (sum, e) => sum + e.amount);
+});
+
 class CategoryTotal {
   CategoryTotal({required this.category, required this.total});
 
@@ -172,7 +207,7 @@ class CategoryTotal {
 }
 
 final monthlyTotalsProvider = Provider<List<CategoryTotal>>((ref) {
-  final expenses = ref.watch(monthExpensesProvider);
+  final expenses = ref.watch(filteredExpensesProvider);
   final categories = ref.watch(categoriesProvider);
   final map = <String, double>{};
 
@@ -192,5 +227,5 @@ final monthlyTotalsProvider = Provider<List<CategoryTotal>>((ref) {
 });
 
 final monthlyTotalAmountProvider = Provider<double>((ref) {
-  return ref.watch(monthExpensesProvider).fold(0.0, (sum, e) => sum + e.amount);
+  return ref.watch(filteredExpensesProvider).fold(0.0, (sum, e) => sum + e.amount);
 });

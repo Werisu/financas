@@ -13,14 +13,66 @@ class DashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final month = ref.watch(selectedMonthProvider);
+    final invoiceView = ref.watch(invoiceViewProvider);
     final total = ref.watch(monthlyTotalAmountProvider);
     final totals = ref.watch(monthlyTotalsProvider);
+    final cards = ref.watch(cardsProvider);
+    final cardFilter = ref.watch(expenseFilterCardProvider);
+    final newTotal = ref.watch(statementNewPurchasesTotalProvider);
+    final carryTotal = ref.watch(statementCarryoversTotalProvider);
     final scheme = Theme.of(context).colorScheme;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
       children: [
+        SegmentedButton<bool>(
+          segments: const [
+            ButtonSegment(
+              value: true,
+              label: Text('Por fatura'),
+              icon: Icon(Icons.credit_card, size: 18),
+            ),
+            ButtonSegment(
+              value: false,
+              label: Text('Por compra'),
+              icon: Icon(Icons.shopping_bag_outlined, size: 18),
+            ),
+          ],
+          selected: {invoiceView},
+          onSelectionChanged: (value) {
+            ref.read(invoiceViewProvider.notifier).state = value.first;
+          },
+        ),
+        const SizedBox(height: 12),
         const MonthSelector(),
+        if (invoiceView) ...[
+          const SizedBox(height: 8),
+          Text(
+            'Mês = vencimento da fatura (ex.: vence 05/08 → agosto)',
+            style: Theme.of(context).textTheme.bodySmall,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String?>(
+            value: cardFilter,
+            decoration: const InputDecoration(
+              labelText: 'Cartão da fatura',
+              isDense: true,
+            ),
+            items: [
+              const DropdownMenuItem(value: null, child: Text('Todos')),
+              ...cards.map(
+                (c) => DropdownMenuItem(
+                  value: c.id,
+                  child: Text(c.displayName),
+                ),
+              ),
+            ],
+            onChanged: (value) {
+              ref.read(expenseFilterCardProvider.notifier).state = value;
+            },
+          ),
+        ],
         const SizedBox(height: 20),
         Container(
           padding: const EdgeInsets.all(24),
@@ -39,7 +91,9 @@ class DashboardScreen extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Total em ${capitalize(monthYearFormat.format(month))}',
+                invoiceView
+                    ? 'Total da fatura · ${capitalize(monthYearFormat.format(month))}'
+                    : 'Total em ${capitalize(monthYearFormat.format(month))}',
                 style: GoogleFonts.dmSans(
                   color: Colors.white.withValues(alpha: 0.85),
                   fontSize: 14,
@@ -58,7 +112,9 @@ class DashboardScreen extends ConsumerWidget {
               const SizedBox(height: 8),
               Text(
                 totals.isEmpty
-                    ? 'Nenhum gasto neste mês ainda'
+                    ? (invoiceView
+                        ? 'Nenhum lançamento nesta fatura'
+                        : 'Nenhum gasto neste mês ainda')
                     : '${totals.length} categorias com movimentação',
                 style: GoogleFonts.dmSans(
                   color: Colors.white.withValues(alpha: 0.8),
@@ -68,6 +124,30 @@ class DashboardScreen extends ConsumerWidget {
             ],
           ),
         ),
+        if (invoiceView && total > 0) ...[
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _BreakdownCard(
+                  title: 'Compras novas',
+                  subtitle: 'À vista ou 1ª parcela',
+                  value: newTotal,
+                  color: scheme.primary,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _BreakdownCard(
+                  title: 'Parcelas antigas',
+                  subtitle: '2/5, 3/5, 5/5…',
+                  value: carryTotal,
+                  color: scheme.tertiary,
+                ),
+              ),
+            ],
+          ),
+        ],
         const SizedBox(height: 24),
         Text(
           'Onde estou gastando',
@@ -86,8 +166,10 @@ class DashboardScreen extends ConsumerWidget {
                   Icon(Icons.insights_outlined,
                       size: 40, color: scheme.primary.withValues(alpha: 0.5)),
                   const SizedBox(height: 12),
-                  const Text(
-                    'Adicione gastos manualmente ou importe a fatura CSV para ver a distribuição por categoria.',
+                  Text(
+                    invoiceView
+                        ? 'Importe a fatura CSV escolhendo o cartão e o mês de vencimento para ver o total real.'
+                        : 'Adicione gastos manualmente ou importe a fatura CSV.',
                     textAlign: TextAlign.center,
                   ),
                 ],
@@ -145,6 +227,54 @@ class DashboardScreen extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _BreakdownCard extends StatelessWidget {
+  const _BreakdownCard({
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.color,
+  });
+
+  final String title;
+  final String subtitle;
+  final double value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              formatCurrency(value),
+              style: GoogleFonts.fraunces(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
