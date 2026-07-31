@@ -68,6 +68,27 @@ class AuthService {
     await _auth.signOut();
   }
 
+  Future<void> updateDisplayName(String displayName) async {
+    final user = _auth.currentUser;
+    if (user == null) throw StateError('Nenhum usuário autenticado.');
+    await user.updateDisplayName(displayName.trim());
+    await user.reload();
+  }
+
+  Future<void> updatePhotoUrl(String photoUrl) async {
+    final user = _auth.currentUser;
+    if (user == null) throw StateError('Nenhum usuário autenticado.');
+    await user.updatePhotoURL(photoUrl);
+    await user.reload();
+  }
+
+  Future<User?> reloadCurrentUser() async {
+    final user = _auth.currentUser;
+    if (user == null) return null;
+    await user.reload();
+    return _auth.currentUser;
+  }
+
   String mapError(Object error) {
     if (error is FirebaseAuthException) {
       switch (error.code) {

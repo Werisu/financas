@@ -31,6 +31,7 @@ final sessionReadyProvider = FutureProvider<User?>((ref) async {
     uid: user.uid,
     email: user.email,
     displayName: user.displayName,
+    photoUrl: user.photoURL,
   );
   return user;
 });

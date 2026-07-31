@@ -19,12 +19,31 @@ class FinanceRepository {
     required String uid,
     String? email,
     String? displayName,
+    String? photoUrl,
   }) async {
     _uid = uid;
     await _sync.ensureUserProfile(
-      UserProfile(uid: uid, email: email, displayName: displayName),
+      UserProfile(
+        uid: uid,
+        email: email,
+        displayName: displayName,
+        photoUrl: photoUrl,
+      ),
     );
     await syncFromCloud();
+  }
+
+  Future<void> updateProfile({
+    String? displayName,
+    String? photoUrl,
+  }) async {
+    final uid = _uid;
+    if (uid == null) return;
+    await _sync.updateUserProfile(
+      uid: uid,
+      displayName: displayName,
+      photoUrl: photoUrl,
+    );
   }
 
   Future<void> unbindUser() async {

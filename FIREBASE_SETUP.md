@@ -17,10 +17,11 @@ Isso gera `lib/firebase_options.dart` e os arquivos nativos (`google-services.js
 No projeto **financas-wellysson**:
 
 1. **Authentication** → Sign-in method → ative **E-mail/senha** e **Google**
-2. **Firestore Database** → criar banco (modo produção) → depois publique as regras:
+2. **Firestore Database** → criar banco (modo produção) → depois publique as regras
+3. **Storage** → criar bucket se ainda não existir → publique as regras
 
 ```powershell
-firebase deploy --only firestore:rules --project=financas-wellysson
+firebase.cmd deploy --only firestore:rules,storage --project=financas-wellysson
 ```
 
 ## 3. Google Sign-In (Web)

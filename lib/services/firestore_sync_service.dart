@@ -20,9 +20,23 @@ class FirestoreSyncService {
     await _userDoc(profile.uid).set({
       'email': profile.email,
       'displayName': profile.displayName,
+      if (profile.photoUrl != null) 'photoUrl': profile.photoUrl,
       'updatedAt': FieldValue.serverTimestamp(),
       'createdAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
+  }
+
+  Future<void> updateUserProfile({
+    required String uid,
+    String? displayName,
+    String? photoUrl,
+  }) {
+    final data = <String, dynamic>{
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+    if (displayName != null) data['displayName'] = displayName;
+    if (photoUrl != null) data['photoUrl'] = photoUrl;
+    return _userDoc(uid).set(data, SetOptions(merge: true));
   }
 
   Future<List<Category>> fetchCategories(String uid) async {
@@ -106,9 +120,11 @@ class UserProfile {
     required this.uid,
     this.email,
     this.displayName,
+    this.photoUrl,
   });
 
   final String uid;
   final String? email;
   final String? displayName;
+  final String? photoUrl;
 }
