@@ -127,9 +127,76 @@ class _ImportCsvScreenState extends ConsumerState<ImportCsvScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Text(
+                        'Como preparar o CSV',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                      const SizedBox(height: 8),
                       const Text(
-                        'Importe a fatura exportada do banco (CSV). '
-                        'O app tenta detectar as colunas e sugerir categorias pelas descrições.',
+                        'Importe a fatura exportada do banco. '
+                        'O app detecta as colunas e sugere categorias pelas descrições.',
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Colunas obrigatórias',
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                      const SizedBox(height: 10),
+                      const _CsvColumnTip(
+                        title: 'Data',
+                        detail:
+                            'Nomes: Data, Date\nFormatos: 15/07/2026, 15-07-2026, 2026-07-15',
+                      ),
+                      const SizedBox(height: 8),
+                      const _CsvColumnTip(
+                        title: 'Descrição',
+                        detail:
+                            'Nomes: Descrição, Estabelecimento, Lançamento, Histórico, Memo, Merchant',
+                      ),
+                      const SizedBox(height: 8),
+                      const _CsvColumnTip(
+                        title: 'Valor',
+                        detail:
+                            'Nomes: Valor, Amount, Value, R\$\nExemplos: 32,50 | 1.234,56 | 32.50',
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Exemplo',
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .primary
+                              .withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const SelectableText(
+                          'Data;Descrição;Valor\n'
+                          '15/07/2026;UBER *TRIP SAO PAULO;32,50\n'
+                          '16/07/2026;DROGASIL FILIAL 102;89,90',
+                          style: TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 13,
+                            height: 1.45,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Aceita ; ou , como separador. A categoria não precisa vir no arquivo — '
+                        'o app sugere automaticamente e você pode ajustar na pré-visualização.',
+                        style: Theme.of(context).textTheme.bodySmall,
                       ),
                       const SizedBox(height: 16),
                       FilledButton.icon(
@@ -321,6 +388,49 @@ class _ImportCsvScreenState extends ConsumerState<ImportCsvScreen> {
         );
       }),
       onChanged: onChanged,
+    );
+  }
+}
+
+class _CsvColumnTip extends StatelessWidget {
+  const _CsvColumnTip({
+    required this.title,
+    required this.detail,
+  });
+
+  final String title;
+  final String detail;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          margin: const EdgeInsets.only(top: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: scheme.primary.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            title,
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: scheme.primary,
+              fontSize: 12,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            detail,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ),
+      ],
     );
   }
 }
