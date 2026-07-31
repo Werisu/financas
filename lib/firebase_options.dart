@@ -44,20 +44,22 @@ class DefaultFirebaseOptions {
   }
 
   /// Substitua rodando `flutterfire configure --project=financas-wellysson`
+
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'REPLACE_WITH_FLUTTERFIRE',
-    appId: '1:000000000000:web:replace_me',
-    messagingSenderId: '000000000000',
+    apiKey: 'AIzaSyCCiXN1LzU_Sb7jjDJfjZibF-wBmUnGLwY',
+    appId: '1:938876943322:web:e4602423a75ffb7a8bdee3',
+    messagingSenderId: '938876943322',
     projectId: 'financas-wellysson',
     authDomain: 'financas-wellysson.firebaseapp.com',
     storageBucket: 'financas-wellysson.firebasestorage.app',
+    measurementId: 'G-HBSGBQN4RT',
   );
-
   /// Substitua rodando `flutterfire configure --project=financas-wellysson`
+
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'REPLACE_WITH_FLUTTERFIRE',
-    appId: '1:000000000000:android:replace_me',
-    messagingSenderId: '000000000000',
+    apiKey: 'AIzaSyBAUGg3c99v0qIrbYLFsbgKADca_Qpv9lM',
+    appId: '1:938876943322:android:b3117aa6317edb338bdee3',
+    messagingSenderId: '938876943322',
     projectId: 'financas-wellysson',
     storageBucket: 'financas-wellysson.firebasestorage.app',
   );

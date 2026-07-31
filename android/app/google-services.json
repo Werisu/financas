@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "938876943322",
+    "project_id": "financas-wellysson",
+    "storage_bucket": "financas-wellysson.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:938876943322:android:b3117aa6317edb338bdee3",
+        "android_client_info": {
+          "package_name": "com.financas.financas"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBAUGg3c99v0qIrbYLFsbgKADca_Qpv9lM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
