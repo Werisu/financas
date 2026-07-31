@@ -112,7 +112,13 @@ class ExpensesScreen extends ConsumerWidget {
                         ),
                         title: Text(expense.description),
                         subtitle: Text(
-                          '${formatDate(expense.date)} · ${category?.name ?? 'Sem categoria'} · ${cardName(expense.cardId)}',
+                          [
+                            formatDate(expense.date),
+                            if (expense.installmentLabel != null)
+                              'Parcela ${expense.installmentLabel}',
+                            category?.name ?? 'Sem categoria',
+                            cardName(expense.cardId),
+                          ].join(' · '),
                         ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,

@@ -25,6 +25,7 @@ class _ImportCsvScreenState extends ConsumerState<ImportCsvScreen> {
   int _dateIndex = 0;
   int _descriptionIndex = 1;
   int _amountIndex = 2;
+  bool _expandInstallments = true;
 
   Future<void> _pickFile() async {
     final result = await FilePicker.pickFiles(
@@ -94,11 +95,22 @@ class _ImportCsvScreenState extends ConsumerState<ImportCsvScreen> {
 
   Future<void> _confirmImport() async {
     if (_parsed.isEmpty) return;
-    final expenses = _service.toExpenses(parsed: _parsed, cardId: _cardId);
+    final expenses = _service.toExpenses(
+      parsed: _parsed,
+      cardId: _cardId,
+      expandInstallments: _expandInstallments,
+    );
     await ref.read(expensesProvider.notifier).saveAll(expenses);
     if (!mounted) return;
+    final extra = expenses.length - _parsed.length;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${expenses.length} gastos importados.')),
+      SnackBar(
+        content: Text(
+          extra > 0
+              ? '${expenses.length} gastos importados (inclui $extra parcelas futuras).'
+              : '${expenses.length} gastos importados.',
+        ),
+      ),
     );
     Navigator.of(context).pop();
   }
@@ -195,7 +207,9 @@ class _ImportCsvScreenState extends ConsumerState<ImportCsvScreen> {
                       const SizedBox(height: 12),
                       Text(
                         'Aceita ; ou , como separador. A categoria não precisa vir no arquivo — '
-                        'o app sugere automaticamente e você pode ajustar na pré-visualização.',
+                        'o app sugere automaticamente e você pode ajustar na pré-visualização.\n\n'
+                        'Parcelas: se a descrição tiver PARC 02/05 ou 5x, o app gera os meses seguintes '
+                        '(ex.: 02/05 em março cria abril, maio e junho). PARC 05/05 é a última e não gera futuro.',
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                       const SizedBox(height: 16),
@@ -230,6 +244,17 @@ class _ImportCsvScreenState extends ConsumerState<ImportCsvScreen> {
                               _hasHeader = value;
                               _rebuildParsed();
                             });
+                          },
+                        ),
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Gerar parcelas futuras'),
+                          subtitle: const Text(
+                            'Detecta PARC 02/05, 3x etc. e lança os meses seguintes',
+                          ),
+                          value: _expandInstallments,
+                          onChanged: (value) {
+                            setState(() => _expandInstallments = value);
                           },
                         ),
                         DropdownButtonFormField<String?>(
@@ -289,9 +314,18 @@ class _ImportCsvScreenState extends ConsumerState<ImportCsvScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                Text(
-                  'Pré-visualização (${_parsed.length} lançamentos)',
-                  style: Theme.of(context).textTheme.titleMedium,
+                Builder(
+                  builder: (context) {
+                    final futureCount = _expandInstallments
+                        ? _service.countFutureInstallments(_parsed)
+                        : 0;
+                    return Text(
+                      futureCount > 0
+                          ? 'Pré-visualização (${_parsed.length} na fatura + $futureCount parcelas futuras)'
+                          : 'Pré-visualização (${_parsed.length} lançamentos)',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    );
+                  },
                 ),
                 const SizedBox(height: 8),
                 if (_parsed.isEmpty)
@@ -306,12 +340,29 @@ class _ImportCsvScreenState extends ConsumerState<ImportCsvScreen> {
                 else
                   ...List.generate(_parsed.length.clamp(0, 40), (index) {
                     final item = _parsed[index];
+                    final info = _service.installments
+                        .parseFromDescription(item.description);
+                    final times =
+                        _service.installments.parseTimesOnly(item.description);
+                    final futureHint = !_expandInstallments
+                        ? null
+                        : info != null && info.hasFuture
+                            ? 'Gera +${info.remaining} parcela(s)'
+                            : info != null && !info.hasFuture
+                                ? 'Última parcela'
+                                : times != null
+                                    ? 'Gera +${times - 1} parcela(s)'
+                                    : null;
                     return Card(
                       margin: const EdgeInsets.only(bottom: 8),
                       child: ListTile(
                         title: Text(item.description),
                         subtitle: Text(
-                          '${formatDate(item.date)} · ${categoryName(item.suggestedCategoryId)}',
+                          [
+                            formatDate(item.date),
+                            categoryName(item.suggestedCategoryId),
+                            ?futureHint,
+                          ].join(' · '),
                         ),
                         trailing: SizedBox(
                           width: 160,
@@ -360,7 +411,12 @@ class _ImportCsvScreenState extends ConsumerState<ImportCsvScreen> {
                 FilledButton.icon(
                   onPressed: _parsed.isEmpty ? null : _confirmImport,
                   icon: const Icon(Icons.download_done),
-                  label: Text('Importar ${_parsed.length} gastos'),
+                  label: Text(
+                    _expandInstallments &&
+                            _service.countFutureInstallments(_parsed) > 0
+                        ? 'Importar ${_parsed.length + _service.countFutureInstallments(_parsed)} gastos'
+                        : 'Importar ${_parsed.length} gastos',
+                  ),
                 ),
                 const SizedBox(height: 24),
               ],
