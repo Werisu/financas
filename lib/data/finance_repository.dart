@@ -139,4 +139,13 @@ class FinanceRepository {
     final uid = _uid;
     if (uid != null) await _sync.deleteExpense(uid, id);
   }
+
+  /// Apaga somente os gastos/lançamentos (local + nuvem).
+  Future<void> resetAllAccounts() async {
+    final uid = _uid;
+    if (uid != null) {
+      await _sync.resetFinancialData(uid);
+    }
+    await AppDatabase.expenses.clear();
+  }
 }

@@ -134,6 +134,23 @@ class FirestoreSyncService {
   Future<void> deleteExpense(String uid, String id) {
     return _col(uid, 'expenses').doc(id).delete();
   }
+
+  Future<void> clearCollection(String uid, String name) async {
+    while (true) {
+      final snap = await _col(uid, name).limit(400).get();
+      if (snap.docs.isEmpty) break;
+      final batch = _db.batch();
+      for (final doc in snap.docs) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+      if (snap.docs.length < 400) break;
+    }
+  }
+
+  Future<void> resetFinancialData(String uid) async {
+    await clearCollection(uid, 'expenses');
+  }
 }
 
 class UserProfile {

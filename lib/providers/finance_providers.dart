@@ -131,6 +131,11 @@ class ExpensesNotifier extends StateNotifier<List<Expense>> {
     await _repo.deleteExpense(id);
     refresh();
   }
+
+  Future<void> resetAll() async {
+    await _repo.resetAllAccounts();
+    refresh();
+  }
 }
 
 final selectedMonthProvider = StateProvider<DateTime>((ref) {
