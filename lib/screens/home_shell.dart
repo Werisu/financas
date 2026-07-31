@@ -1,3 +1,4 @@
+import 'package:financas/providers/finance_providers.dart';
 import 'package:financas/screens/cards_screen.dart';
 import 'package:financas/screens/categories_screen.dart';
 import 'package:financas/screens/dashboard_screen.dart';
@@ -6,22 +7,49 @@ import 'package:financas/screens/expenses_screen.dart';
 import 'package:financas/screens/import_csv_screen.dart';
 import 'package:financas/utils/app_info.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-class HomeShell extends StatefulWidget {
+class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key});
 
   @override
-  State<HomeShell> createState() => _HomeShellState();
+  ConsumerState<HomeShell> createState() => _HomeShellState();
 }
 
-class _HomeShellState extends State<HomeShell> {
+class _HomeShellState extends ConsumerState<HomeShell> {
   int _index = 0;
 
   static const _titles = ['Visão geral', 'Gastos', 'Categorias', 'Cartões'];
 
+  Future<void> _signOut() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Sair da conta?'),
+        content: const Text(
+          'Seus dados continuam salvos na nuvem. Você poderá entrar novamente depois.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Sair'),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      await ref.read(authServiceProvider).signOut();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final user = ref.watch(authStateProvider).asData?.value;
     final pages = [
       const DashboardScreen(),
       const ExpensesScreen(),
@@ -44,10 +72,41 @@ class _HomeShellState extends State<HomeShell> {
             },
             icon: const Icon(Icons.upload_file_outlined),
           ),
-          IconButton(
-            tooltip: 'Sobre',
-            onPressed: () => _showAbout(context),
-            icon: const Icon(Icons.info_outline),
+          PopupMenuButton<String>(
+            tooltip: 'Conta',
+            onSelected: (value) {
+              if (value == 'about') _showAbout(context);
+              if (value == 'logout') _signOut();
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                enabled: false,
+                child: Text(
+                  user?.email ?? user?.displayName ?? 'Conta',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+              const PopupMenuDivider(),
+              const PopupMenuItem(
+                value: 'about',
+                child: ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.info_outline),
+                  title: Text('Sobre'),
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'logout',
+                child: ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.logout),
+                  title: Text('Sair'),
+                ),
+              ),
+            ],
+            icon: const Icon(Icons.account_circle_outlined),
           ),
           const SizedBox(width: 4),
         ],
@@ -161,7 +220,10 @@ class _HomeShellState extends State<HomeShell> {
           'Organize os gastos do cartão por categoria e acompanhe para onde o dinheiro está indo.',
           style: GoogleFonts.dmSans(
             fontSize: 13,
-            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+            color: Theme.of(context)
+                .colorScheme
+                .onSurface
+                .withValues(alpha: 0.7),
           ),
         ),
       ],
