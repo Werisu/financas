@@ -35,6 +35,7 @@ class FinanceRepository {
 
   Future<void> updateProfile({
     String? displayName,
+    String? photoBase64,
     String? photoUrl,
   }) async {
     final uid = _uid;
@@ -42,8 +43,15 @@ class FinanceRepository {
     await _sync.updateUserProfile(
       uid: uid,
       displayName: displayName,
+      photoBase64: photoBase64,
       photoUrl: photoUrl,
     );
+  }
+
+  Future<UserProfile?> fetchProfile() async {
+    final uid = _uid;
+    if (uid == null) return null;
+    return _sync.fetchUserProfile(uid);
   }
 
   Future<void> unbindUser() async {

@@ -17,26 +17,47 @@ class FirestoreSyncService {
       _userDoc(uid).collection(name);
 
   Future<void> ensureUserProfile(UserProfile profile) async {
-    await _userDoc(profile.uid).set({
+    final data = <String, dynamic>{
       'email': profile.email,
       'displayName': profile.displayName,
-      if (profile.photoUrl != null) 'photoUrl': profile.photoUrl,
       'updatedAt': FieldValue.serverTimestamp(),
       'createdAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    };
+    if (profile.photoBase64 != null) {
+      data['photoBase64'] = profile.photoBase64;
+    }
+    if (profile.photoUrl != null) {
+      data['photoUrl'] = profile.photoUrl;
+    }
+    await _userDoc(profile.uid).set(data, SetOptions(merge: true));
   }
 
   Future<void> updateUserProfile({
     required String uid,
     String? displayName,
+    String? photoBase64,
     String? photoUrl,
   }) {
     final data = <String, dynamic>{
       'updatedAt': FieldValue.serverTimestamp(),
     };
     if (displayName != null) data['displayName'] = displayName;
+    if (photoBase64 != null) data['photoBase64'] = photoBase64;
     if (photoUrl != null) data['photoUrl'] = photoUrl;
     return _userDoc(uid).set(data, SetOptions(merge: true));
+  }
+
+  Future<UserProfile?> fetchUserProfile(String uid) async {
+    final snap = await _userDoc(uid).get();
+    if (!snap.exists) return null;
+    final data = snap.data() ?? {};
+    return UserProfile(
+      uid: uid,
+      email: data['email'] as String?,
+      displayName: data['displayName'] as String?,
+      photoUrl: data['photoUrl'] as String?,
+      photoBase64: data['photoBase64'] as String?,
+    );
   }
 
   Future<List<Category>> fetchCategories(String uid) async {
@@ -121,10 +142,12 @@ class UserProfile {
     this.email,
     this.displayName,
     this.photoUrl,
+    this.photoBase64,
   });
 
   final String uid;
   final String? email;
   final String? displayName;
   final String? photoUrl;
+  final String? photoBase64;
 }

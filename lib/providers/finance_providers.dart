@@ -3,6 +3,7 @@ import 'package:financas/models/category.dart';
 import 'package:financas/models/credit_card.dart';
 import 'package:financas/models/expense.dart';
 import 'package:financas/services/auth_service.dart';
+import 'package:financas/services/firestore_sync_service.dart';
 import 'package:financas/utils/formatters.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -34,6 +35,19 @@ final sessionReadyProvider = FutureProvider<User?>((ref) async {
     photoUrl: user.photoURL,
   );
   return user;
+});
+
+final userProfileProvider = FutureProvider<UserProfile?>((ref) async {
+  final session = await ref.watch(sessionReadyProvider.future);
+  if (session == null) return null;
+  final profile = await ref.read(repositoryProvider).fetchProfile();
+  if (profile != null) return profile;
+  return UserProfile(
+    uid: session.uid,
+    email: session.email,
+    displayName: session.displayName,
+    photoUrl: session.photoURL,
+  );
 });
 
 final categoriesProvider =

@@ -18,11 +18,12 @@ No projeto **financas-wellysson**:
 
 1. **Authentication** → Sign-in method → ative **E-mail/senha** e **Google**
 2. **Firestore Database** → criar banco (modo produção) → depois publique as regras
-3. **Storage** → criar bucket se ainda não existir → publique as regras
 
 ```powershell
-firebase.cmd deploy --only firestore:rules,storage --project=financas-wellysson
+firebase.cmd deploy --only firestore:rules --project=financas-wellysson
 ```
+
+> Foto de perfil usa o **Firestore** (base64 comprimido), sem Firebase Storage — funciona no plano gratuito.
 
 ## 3. Google Sign-In (Web)
 

@@ -1,6 +1,9 @@
+import 'dart:typed_data';
+
 import 'package:financas/providers/finance_providers.dart';
 import 'package:financas/services/profile_service.dart';
 import 'package:financas/theme/app_theme.dart';
+import 'package:financas/utils/profile_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -21,16 +24,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _loading = false;
   bool _uploadingPhoto = false;
+  bool _initialized = false;
+  String? _photoBase64;
   String? _photoUrl;
+  Uint8List? _localPreview;
   String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    final user = ref.read(authServiceProvider).currentUser;
-    _nameController.text = user?.displayName ?? '';
-    _photoUrl = user?.photoURL;
-  }
 
   @override
   void dispose() {
@@ -38,7 +36,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     super.dispose();
   }
 
-  Future<void> _pickAndUploadPhoto() async {
+  void _hydrateFromProfile() {
+    if (_initialized) return;
+    final profile = ref.read(userProfileProvider).asData?.value;
+    final user = ref.read(authServiceProvider).currentUser;
+    _nameController.text =
+        profile?.displayName ?? user?.displayName ?? '';
+    _photoBase64 = profile?.photoBase64;
+    _photoUrl = profile?.photoUrl ?? user?.photoURL;
+    _initialized = true;
+  }
+
+  Future<void> _pickAndSavePhoto() async {
     final user = ref.read(authServiceProvider).currentUser;
     if (user == null) return;
 
@@ -48,32 +57,32 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     });
 
     try {
-      final profileService = ref.read(profileServiceProvider);
-      final file = await profileService.pickProfileImage();
-      if (file == null) {
+      final photo = await ref
+          .read(profileServiceProvider)
+          .pickCompressedProfileImage();
+      if (photo == null) {
         setState(() => _uploadingPhoto = false);
         return;
       }
 
-      final bytes = await file.readAsBytes();
-      final contentType = file.mimeType ?? 'image/jpeg';
-      final url = await profileService.uploadProfilePhoto(
-        uid: user.uid,
-        bytes: bytes,
-        contentType: contentType,
-      );
+      await ref.read(repositoryProvider).updateProfile(
+            photoBase64: photo.base64,
+          );
 
-      await ref.read(authServiceProvider).updatePhotoUrl(url);
-      await ref.read(repositoryProvider).updateProfile(photoUrl: url);
+      setState(() {
+        _localPreview = photo.bytes;
+        _photoBase64 = photo.base64;
+        _photoUrl = null;
+      });
+      ref.invalidate(userProfileProvider);
 
-      setState(() => _photoUrl = url);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Foto atualizada.')),
         );
       }
     } catch (e) {
-      setState(() => _error = 'Não foi possível enviar a foto: $e');
+      setState(() => _error = e.toString().replaceFirst('Bad state: ', ''));
     } finally {
       if (mounted) setState(() => _uploadingPhoto = false);
     }
@@ -93,6 +102,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       final name = _nameController.text.trim();
       await ref.read(authServiceProvider).updateDisplayName(name);
       await ref.read(repositoryProvider).updateProfile(displayName: name);
+      ref.invalidate(userProfileProvider);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Perfil salvo.')),
@@ -109,11 +119,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(userProfileProvider);
+    _hydrateFromProfile();
+
     final user = ref.watch(authStateProvider).asData?.value;
     final scheme = Theme.of(context).colorScheme;
-    final initials = _initials(_nameController.text.isNotEmpty
-        ? _nameController.text
-        : (user?.email ?? '?'));
+    final image = profileImageProvider(
+      photoBase64: _photoBase64,
+      photoUrl: _photoUrl,
+      localBytes: _localPreview,
+    );
+    final initials = _initials(
+      _nameController.text.isNotEmpty
+          ? _nameController.text
+          : (user?.email ?? '?'),
+    );
 
     return Scaffold(
       appBar: AppBar(title: const Text('Meu perfil')),
@@ -131,10 +151,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       CircleAvatar(
                         radius: 56,
                         backgroundColor: scheme.primary.withValues(alpha: 0.12),
-                        backgroundImage: _photoUrl != null
-                            ? NetworkImage(_photoUrl!)
-                            : null,
-                        child: _photoUrl == null
+                        backgroundImage: image,
+                        child: image == null
                             ? Text(
                                 initials,
                                 style: GoogleFonts.fraunces(
@@ -153,7 +171,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           shape: const CircleBorder(),
                           child: InkWell(
                             customBorder: const CircleBorder(),
-                            onTap: _uploadingPhoto ? null : _pickAndUploadPhoto,
+                            onTap: _uploadingPhoto ? null : _pickAndSavePhoto,
                             child: Padding(
                               padding: const EdgeInsets.all(10),
                               child: _uploadingPhoto
