@@ -32,20 +32,36 @@ class AppDatabase {
       Hive.openBox<Expense>(HiveBoxes.expenses),
       Hive.openBox(HiveBoxes.meta),
     ]);
-
-    await _seedCategoriesIfNeeded();
   }
 
-  static Future<void> _seedCategoriesIfNeeded() async {
-    final meta = Hive.box(HiveBoxes.meta);
-    final categories = Hive.box<Category>(HiveBoxes.categories);
-    if (meta.get('categoriesSeeded') == true && categories.isNotEmpty) {
-      return;
-    }
+  static Future<void> clearUserData() async {
+    await categories.clear();
+    await cards.clear();
+    await expenses.clear();
+  }
+
+  static Future<void> replaceAll({
+    required List<Category> categories,
+    required List<CreditCard> cards,
+    required List<Expense> expenses,
+  }) async {
+    await clearUserData();
+    await AppDatabase.categories.putAll({
+      for (final item in categories) item.id: item,
+    });
+    await AppDatabase.cards.putAll({
+      for (final item in cards) item.id: item,
+    });
+    await AppDatabase.expenses.putAll({
+      for (final item in expenses) item.id: item,
+    });
+  }
+
+  static Future<void> seedLocalCategoriesIfEmpty() async {
+    if (categories.isNotEmpty) return;
     for (final category in CategorySeeds.defaults()) {
       await categories.put(category.id, category);
     }
-    await meta.put('categoriesSeeded', true);
   }
 
   static Box<Category> get categories =>

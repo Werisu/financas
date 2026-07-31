@@ -44,7 +44,7 @@ class Category {
       id: map['id'] as String,
       name: map['name'] as String,
       iconKey: (map['iconKey'] as String?) ?? 'more',
-      colorValue: map['colorValue'] as int,
+      colorValue: (map['colorValue'] as num).toInt(),
     );
   }
 }

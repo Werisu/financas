@@ -4,6 +4,11 @@ App Flutter para categorizar gastos do cartão de crédito e entender onde o din
 
 **Desenvolvido por Wellysson Nascimento Rocha**
 
+## Firebase (`financas-wellysson`)
+
+Login (e-mail/senha + Google) e sincronização na nuvem via Firestore.
+Veja o passo a passo em [FIREBASE_SETUP.md](FIREBASE_SETUP.md).
+
 ## Recursos
 
 - Lançamento manual de gastos

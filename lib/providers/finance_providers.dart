@@ -2,15 +2,57 @@ import 'package:financas/data/finance_repository.dart';
 import 'package:financas/models/category.dart';
 import 'package:financas/models/credit_card.dart';
 import 'package:financas/models/expense.dart';
+import 'package:financas/services/auth_service.dart';
+import 'package:financas/services/firestore_sync_service.dart';
 import 'package:financas/utils/formatters.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+final authServiceProvider = Provider<AuthService>((ref) => AuthService());
+
+final authStateProvider = StreamProvider<User?>((ref) {
+  return ref.watch(authServiceProvider).authStateChanges;
+});
 
 final repositoryProvider = Provider<FinanceRepository>((ref) {
   return FinanceRepository();
 });
 
+final sessionReadyProvider = FutureProvider<User?>((ref) async {
+  final auth = ref.watch(authStateProvider);
+  final user = auth.asData?.value;
+  final repo = ref.read(repositoryProvider);
+
+  if (user == null) {
+    await repo.unbindUser();
+    return null;
+  }
+
+  await repo.bindUser(
+    uid: user.uid,
+    email: user.email,
+    displayName: user.displayName,
+    photoUrl: user.photoURL,
+  );
+  return user;
+});
+
+final userProfileProvider = FutureProvider<UserProfile?>((ref) async {
+  final session = await ref.watch(sessionReadyProvider.future);
+  if (session == null) return null;
+  final profile = await ref.read(repositoryProvider).fetchProfile();
+  if (profile != null) return profile;
+  return UserProfile(
+    uid: session.uid,
+    email: session.email,
+    displayName: session.displayName,
+    photoUrl: session.photoURL,
+  );
+});
+
 final categoriesProvider =
     StateNotifierProvider<CategoriesNotifier, List<Category>>((ref) {
+  ref.watch(sessionReadyProvider);
   return CategoriesNotifier(ref.watch(repositoryProvider));
 });
 
@@ -36,6 +78,7 @@ class CategoriesNotifier extends StateNotifier<List<Category>> {
 
 final cardsProvider =
     StateNotifierProvider<CardsNotifier, List<CreditCard>>((ref) {
+  ref.watch(sessionReadyProvider);
   return CardsNotifier(ref.watch(repositoryProvider));
 });
 
@@ -61,6 +104,7 @@ class CardsNotifier extends StateNotifier<List<CreditCard>> {
 
 final expensesProvider =
     StateNotifierProvider<ExpensesNotifier, List<Expense>>((ref) {
+  ref.watch(sessionReadyProvider);
   return ExpensesNotifier(ref.watch(repositoryProvider));
 });
 

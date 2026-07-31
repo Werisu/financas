@@ -1,0 +1,28 @@
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "financas-wellysson",
+          "appId": "1:938876943322:android:b3117aa6317edb338bdee3",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "financas-wellysson",
+          "configurations": {
+            "android": "1:938876943322:android:b3117aa6317edb338bdee3",
+            "web": "1:938876943322:web:e4602423a75ffb7a8bdee3"
+          }
+        }
+      }
+    }
+  }
+}
