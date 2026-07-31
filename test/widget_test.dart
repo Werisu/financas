@@ -60,9 +60,6 @@ Data;Descrição;Valor
     expect(info?.total, 5);
     expect(info?.remaining, 3);
 
-    final last = service.parseFromDescription('ROMULOFERREIRAPARC05/05');
-    expect(last?.remaining, 0);
-
     final expanded = service.expandExpense(
       base: Expense(
         id: '1',
@@ -74,7 +71,44 @@ Data;Descrição;Valor
     );
 
     expect(expanded.length, 4);
-    expect(expanded.map((e) => e.date.month).toList(), [3, 4, 5, 6]);
-    expect(expanded.last.description, contains('PARC05/05'));
+    expect(expanded.map((e) => e.billingMonth.month).toList(), [3, 4, 5, 6]);
+  });
+
+  test('não remove linhas iguais do CSV na expansão', () {
+    final service = InstallmentService();
+    final due = DateTime(2026, 8);
+    final rows = [
+      Expense(
+        id: 'a',
+        description: 'ROMULOFERREIRAPARC05/05',
+        amount: 332.45,
+        date: DateTime(2026, 3, 6),
+        categoryId: 'cat_outros',
+        statementDueMonth: due,
+      ),
+      Expense(
+        id: 'b',
+        description: 'ROMULOFERREIRAPARC05/05',
+        amount: 332.45,
+        date: DateTime(2026, 3, 9),
+        categoryId: 'cat_outros',
+        statementDueMonth: due,
+      ),
+      Expense(
+        id: 'c',
+        description: 'ROMULOFERREIRAPARC05/05',
+        amount: 110.82,
+        date: DateTime(2026, 3, 20),
+        categoryId: 'cat_outros',
+        statementDueMonth: due,
+      ),
+    ];
+
+    final expanded = service.expandMany(rows);
+    expect(expanded.length, 3);
+    expect(
+      expanded.fold<double>(0, (sum, e) => sum + e.amount),
+      closeTo(332.45 + 332.45 + 110.82, 0.001),
+    );
   });
 }

@@ -55,6 +55,69 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     );
   }
 
+  Future<void> _resetAccounts() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Resetar lançamentos?'),
+        content: const Text(
+          'Isso apaga permanentemente todos os gastos lançados '
+          '(no aparelho e na nuvem).\n\n'
+          'Categorias, cartões e perfil serão mantidos.\n\n'
+          'Essa ação não pode ser desfeita.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Apagar lançamentos'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !mounted) return;
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const PopScope(
+        canPop: false,
+        child: AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 20),
+              Expanded(child: Text('Apagando lançamentos...')),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    try {
+      await ref.read(expensesProvider.notifier).resetAll();
+      ref.invalidate(expensesProvider);
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Lançamentos apagados.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Falha ao resetar: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authStateProvider).asData?.value;
@@ -92,6 +155,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
             tooltip: 'Conta',
             onSelected: (value) {
               if (value == 'profile') _openProfile();
+              if (value == 'reset') _resetAccounts();
               if (value == 'about') _showAbout(context);
               if (value == 'logout') _signOut();
             },
@@ -129,6 +193,15 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                   contentPadding: EdgeInsets.zero,
                   leading: Icon(Icons.person_outline),
                   title: Text('Meu perfil'),
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'reset',
+                child: ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.delete_forever_outlined),
+                  title: Text('Resetar lançamentos'),
                 ),
               ),
               const PopupMenuItem(

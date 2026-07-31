@@ -26,6 +26,14 @@ class _ImportCsvScreenState extends ConsumerState<ImportCsvScreen> {
   int _descriptionIndex = 1;
   int _amountIndex = 2;
   bool _expandInstallments = true;
+  late DateTime _statementDueMonth;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _statementDueMonth = DateTime(now.year, now.month);
+  }
 
   Future<void> _pickFile() async {
     final result = await FilePicker.pickFiles(
@@ -95,20 +103,37 @@ class _ImportCsvScreenState extends ConsumerState<ImportCsvScreen> {
 
   Future<void> _confirmImport() async {
     if (_parsed.isEmpty) return;
+    if (_cardId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Selecione o cartão desta fatura antes de importar.'),
+        ),
+      );
+      return;
+    }
+
     final expenses = _service.toExpenses(
       parsed: _parsed,
       cardId: _cardId,
+      statementDueMonth: _statementDueMonth,
       expandInstallments: _expandInstallments,
     );
     await ref.read(expensesProvider.notifier).saveAll(expenses);
+
+    // Ajusta a visão para a fatura importada.
+    ref.read(invoiceViewProvider.notifier).state = true;
+    ref.read(selectedMonthProvider.notifier).state =
+        DateTime(_statementDueMonth.year, _statementDueMonth.month);
+    ref.read(expenseFilterCardProvider.notifier).state = _cardId;
+
     if (!mounted) return;
     final extra = expenses.length - _parsed.length;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
           extra > 0
-              ? '${expenses.length} gastos importados (inclui $extra parcelas futuras).'
-              : '${expenses.length} gastos importados.',
+              ? '${expenses.length} gastos na fatura de ${capitalize(monthYearFormat.format(_statementDueMonth))} (+$extra futuras).'
+              : '${expenses.length} gastos na fatura de ${capitalize(monthYearFormat.format(_statementDueMonth))}.',
         ),
       ),
     );
@@ -206,10 +231,11 @@ class _ImportCsvScreenState extends ConsumerState<ImportCsvScreen> {
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        'Aceita ; ou , como separador. A categoria não precisa vir no arquivo — '
-                        'o app sugere automaticamente e você pode ajustar na pré-visualização.\n\n'
-                        'Parcelas: se a descrição tiver PARC 02/05 ou 5x, o app gera os meses seguintes '
-                        '(ex.: 02/05 em março cria abril, maio e junho). PARC 05/05 é a última e não gera futuro.',
+                        'Aceita ; ou , como separador. A data do CSV é a da compra '
+                        '(ex.: 06/03 numa parcela). O valor entra na fatura que você '
+                        'escolher abaixo (ex.: vencimento em agosto).\n\n'
+                        'Parcelas futuras: se vier PARC 02/05, o app cria as próximas '
+                        'faturas. PARC 05/05 é a última — só soma nesta fatura.',
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                       const SizedBox(height: 16),
@@ -248,24 +274,26 @@ class _ImportCsvScreenState extends ConsumerState<ImportCsvScreen> {
                         ),
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
-                          title: const Text('Gerar parcelas futuras'),
+                          title: const Text('Gerar parcelas nas próximas faturas'),
                           subtitle: const Text(
-                            'Detecta PARC 02/05, 3x etc. e lança os meses seguintes',
+                            'Ex.: PARC 02/05 cria lançamentos nas faturas seguintes',
                           ),
                           value: _expandInstallments,
                           onChanged: (value) {
                             setState(() => _expandInstallments = value);
                           },
                         ),
+                        const SizedBox(height: 8),
                         DropdownButtonFormField<String?>(
                           value: _cardId,
                           decoration: const InputDecoration(
-                            labelText: 'Cartão da fatura',
+                            labelText: 'Cartão desta fatura *',
+                            helperText: 'Obrigatório para amarrar o valor à fatura correta',
                           ),
                           items: [
                             const DropdownMenuItem(
                               value: null,
-                              child: Text('Nenhum'),
+                              child: Text('Selecione...'),
                             ),
                             ...cards.map(
                               (c) => DropdownMenuItem(
@@ -275,6 +303,39 @@ class _ImportCsvScreenState extends ConsumerState<ImportCsvScreen> {
                             ),
                           ],
                           onChanged: (value) => setState(() => _cardId = value),
+                        ),
+                        const SizedBox(height: 12),
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Vencimento desta fatura *'),
+                          subtitle: Text(
+                            capitalize(monthYearFormat.format(_statementDueMonth)),
+                          ),
+                          trailing: const Icon(Icons.calendar_month_outlined),
+                          onTap: () async {
+                            final picked = await showDatePicker(
+                              context: context,
+                              initialDate: _statementDueMonth,
+                              firstDate: DateTime(2018),
+                              lastDate: DateTime.now().add(
+                                const Duration(days: 365 * 2),
+                              ),
+                              locale: const Locale('pt', 'BR'),
+                              helpText: 'Mês de vencimento da fatura',
+                            );
+                            if (picked != null) {
+                              setState(() {
+                                _statementDueMonth =
+                                    DateTime(picked.year, picked.month);
+                              });
+                            }
+                          },
+                        ),
+                        Text(
+                          'Ex.: fecha 29/07 e vence 05/08 → escolha agosto/2026. '
+                          'Assim o PARC05/05 de 332,45 entra na fatura de agosto, '
+                          'mesmo com data de compra em março.',
+                          style: Theme.of(context).textTheme.bodySmall,
                         ),
                         const SizedBox(height: 12),
                         _columnDropdown(
@@ -316,14 +377,129 @@ class _ImportCsvScreenState extends ConsumerState<ImportCsvScreen> {
                 const SizedBox(height: 16),
                 Builder(
                   builder: (context) {
+                    final invoiceTotal = _parsed.fold<double>(
+                      0,
+                      (sum, item) => sum + item.amount,
+                    );
                     final futureCount = _expandInstallments
                         ? _service.countFutureInstallments(_parsed)
                         : 0;
-                    return Text(
-                      futureCount > 0
-                          ? 'Pré-visualização (${_parsed.length} na fatura + $futureCount parcelas futuras)'
-                          : 'Pré-visualização (${_parsed.length} lançamentos)',
-                      style: Theme.of(context).textTheme.titleMedium,
+                    final futureTotal = _expandInstallments
+                        ? _parsed.fold<double>(0, (sum, item) {
+                            final info = _service.installments
+                                .parseFromDescription(item.description);
+                            if (info != null && info.hasFuture) {
+                              return sum + (item.amount * info.remaining);
+                            }
+                            final times = _service.installments
+                                .parseTimesOnly(item.description);
+                            if (times != null) {
+                              return sum + (item.amount * (times - 1));
+                            }
+                            return sum;
+                          })
+                        : 0.0;
+                    final scheme = Theme.of(context).colorScheme;
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          futureCount > 0
+                              ? 'Pré-visualização (${_parsed.length} na fatura + $futureCount parcelas futuras)'
+                              : 'Pré-visualização (${_parsed.length} lançamentos)',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 10),
+                        Card(
+                          color: scheme.primary.withValues(alpha: 0.08),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        'Total desta fatura',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleSmall
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                      ),
+                                    ),
+                                    Text(
+                                      formatCurrency(invoiceTotal),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleLarge
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w800,
+                                            color: scheme.primary,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        '${_parsed.length} lançamento(s) no arquivo',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (futureCount > 0) ...[
+                                  const Divider(height: 20),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          'Parcelas futuras geradas',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodyMedium,
+                                        ),
+                                      ),
+                                      Text(formatCurrency(futureTotal)),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          'Total geral (fatura + futuras)',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleSmall
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                        ),
+                                      ),
+                                      Text(
+                                        formatCurrency(
+                                          invoiceTotal + futureTotal,
+                                        ),
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     );
                   },
                 ),
@@ -403,7 +579,8 @@ class _ImportCsvScreenState extends ConsumerState<ImportCsvScreen> {
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: Text(
-                      'Mostrando 40 de ${_parsed.length}. Todos serão importados.',
+                      'Mostrando 40 de ${_parsed.length} na lista abaixo. '
+                      'A soma e a importação usam os ${_parsed.length} registros.',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ),
@@ -411,12 +588,17 @@ class _ImportCsvScreenState extends ConsumerState<ImportCsvScreen> {
                 FilledButton.icon(
                   onPressed: _parsed.isEmpty ? null : _confirmImport,
                   icon: const Icon(Icons.download_done),
-                  label: Text(
-                    _expandInstallments &&
-                            _service.countFutureInstallments(_parsed) > 0
-                        ? 'Importar ${_parsed.length + _service.countFutureInstallments(_parsed)} gastos'
-                        : 'Importar ${_parsed.length} gastos',
-                  ),
+                  label: Text(() {
+                    final invoiceTotal = _parsed.fold<double>(
+                      0,
+                      (sum, item) => sum + item.amount,
+                    );
+                    final futureCount = _expandInstallments
+                        ? _service.countFutureInstallments(_parsed)
+                        : 0;
+                    final count = _parsed.length + futureCount;
+                    return 'Importar $count gastos · ${formatCurrency(invoiceTotal)}';
+                  }()),
                 ),
                 const SizedBox(height: 24),
               ],

@@ -6,12 +6,14 @@ class CreditCard {
     required this.name,
     this.nickname,
     this.closingDay,
+    this.dueDay,
   });
 
   final String id;
   final String name;
   final String? nickname;
   final int? closingDay;
+  final int? dueDay;
 
   String get displayName =>
       (nickname != null && nickname!.isNotEmpty) ? nickname! : name;
@@ -21,12 +23,14 @@ class CreditCard {
     String? name,
     String? nickname,
     int? closingDay,
+    int? dueDay,
   }) {
     return CreditCard(
       id: id ?? this.id,
       name: name ?? this.name,
       nickname: nickname ?? this.nickname,
       closingDay: closingDay ?? this.closingDay,
+      dueDay: dueDay ?? this.dueDay,
     );
   }
 
@@ -35,13 +39,15 @@ class CreditCard {
         'name': name,
         'nickname': nickname,
         'closingDay': closingDay,
+        'dueDay': dueDay,
       };
 
   factory CreditCard.fromMap(Map<dynamic, dynamic> map) => CreditCard(
         id: map['id'] as String,
         name: map['name'] as String,
         nickname: map['nickname'] as String?,
-        closingDay: map['closingDay'] as int?,
+        closingDay: (map['closingDay'] as num?)?.toInt(),
+        dueDay: (map['dueDay'] as num?)?.toInt(),
       );
 }
 

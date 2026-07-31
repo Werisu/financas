@@ -114,8 +114,12 @@ class ExpensesScreen extends ConsumerWidget {
                         subtitle: Text(
                           [
                             formatDate(expense.date),
+                            if (expense.statementDueMonth != null)
+                              'Fatura ${shortMonthFormat.format(expense.statementDueMonth!)}',
                             if (expense.installmentLabel != null)
-                              'Parcela ${expense.installmentLabel}',
+                              expense.isCarryoverInstallment
+                                  ? 'Parcela antiga ${expense.installmentLabel}'
+                                  : 'Parcela ${expense.installmentLabel}',
                             category?.name ?? 'Sem categoria',
                             cardName(expense.cardId),
                           ].join(' · '),

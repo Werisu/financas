@@ -9,6 +9,7 @@ class MonthSelector extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final month = ref.watch(selectedMonthProvider);
+    final invoiceView = ref.watch(invoiceViewProvider);
 
     return Row(
       children: [
@@ -22,7 +23,9 @@ class MonthSelector extends ConsumerWidget {
         ),
         Expanded(
           child: Text(
-            capitalize(monthYearFormat.format(month)),
+            invoiceView
+                ? 'Fatura · ${capitalize(monthYearFormat.format(month))}'
+                : capitalize(monthYearFormat.format(month)),
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
