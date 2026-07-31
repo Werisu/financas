@@ -2,6 +2,8 @@
 
 App Flutter para categorizar gastos do cartão de crédito e entender onde o dinheiro está indo.
 
+**Desenvolvido por Wellysson Nascimento Rocha**
+
 ## Recursos
 
 - Lançamento manual de gastos

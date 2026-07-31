@@ -1,4 +1,5 @@
 import 'package:financas/providers/finance_providers.dart';
+import 'package:financas/utils/app_info.dart';
 import 'package:financas/utils/formatters.dart';
 import 'package:financas/widgets/category_totals_chart.dart';
 import 'package:financas/widgets/month_selector.dart';
@@ -134,6 +135,15 @@ class DashboardScreen extends ConsumerWidget {
             );
           }),
         ],
+        const SizedBox(height: 28),
+        Text(
+          AppInfo.creditLine,
+          textAlign: TextAlign.center,
+          style: GoogleFonts.dmSans(
+            fontSize: 12,
+            color: scheme.onSurface.withValues(alpha: 0.45),
+          ),
+        ),
       ],
     );
   }

@@ -4,7 +4,9 @@ import 'package:financas/screens/dashboard_screen.dart';
 import 'package:financas/screens/expense_form_screen.dart';
 import 'package:financas/screens/expenses_screen.dart';
 import 'package:financas/screens/import_csv_screen.dart';
+import 'package:financas/utils/app_info.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
@@ -41,6 +43,11 @@ class _HomeShellState extends State<HomeShell> {
               );
             },
             icon: const Icon(Icons.upload_file_outlined),
+          ),
+          IconButton(
+            tooltip: 'Sobre',
+            onPressed: () => _showAbout(context),
+            icon: const Icon(Icons.info_outline),
           ),
           const SizedBox(width: 4),
         ],
@@ -130,6 +137,34 @@ class _HomeShellState extends State<HomeShell> {
           Expanded(child: content),
         ],
       ),
+    );
+  }
+
+  void _showAbout(BuildContext context) {
+    showAboutDialog(
+      context: context,
+      applicationName: AppInfo.appName,
+      applicationVersion: '1.0.0',
+      applicationIcon: Icon(
+        Icons.account_balance_wallet_outlined,
+        size: 40,
+        color: Theme.of(context).colorScheme.primary,
+      ),
+      children: [
+        const SizedBox(height: 8),
+        Text(
+          AppInfo.creditLine,
+          style: GoogleFonts.dmSans(fontSize: 14),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Organize os gastos do cartão por categoria e acompanhe para onde o dinheiro está indo.',
+          style: GoogleFonts.dmSans(
+            fontSize: 13,
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+          ),
+        ),
+      ],
     );
   }
 }
