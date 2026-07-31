@@ -148,6 +148,7 @@ final invoiceViewProvider = StateProvider<bool>((ref) => true);
 
 final expenseFilterCategoryProvider = StateProvider<String?>((ref) => null);
 final expenseFilterCardProvider = StateProvider<String?>((ref) => null);
+final expenseSearchQueryProvider = StateProvider<String>((ref) => '');
 
 final monthExpensesProvider = Provider<List<Expense>>((ref) {
   final expenses = ref.watch(expensesProvider);
@@ -171,6 +172,29 @@ final filteredExpensesProvider = Provider<List<Expense>>((ref) {
     if (cardId != null && expense.cardId != cardId) return false;
     return true;
   }).toList();
+});
+
+/// Lista da tela de Gastos: com busca, procura em todos os meses.
+final expensesListProvider = Provider<List<Expense>>((ref) {
+  final query = ref.watch(expenseSearchQueryProvider).trim().toLowerCase();
+  final categoryId = ref.watch(expenseFilterCategoryProvider);
+  final cardId = ref.watch(expenseFilterCardProvider);
+  final expenses = query.isEmpty
+      ? ref.watch(monthExpensesProvider)
+      : ref.watch(expensesProvider);
+
+  final filtered = expenses.where((expense) {
+    if (categoryId != null && expense.categoryId != categoryId) return false;
+    if (cardId != null && expense.cardId != cardId) return false;
+    if (query.isNotEmpty &&
+        !expense.description.toLowerCase().contains(query)) {
+      return false;
+    }
+    return true;
+  }).toList();
+
+  filtered.sort((a, b) => b.date.compareTo(a.date));
+  return filtered;
 });
 
 final statementNewPurchasesProvider = Provider<List<Expense>>((ref) {
