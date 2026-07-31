@@ -1,0 +1,135 @@
+import 'package:financas/screens/cards_screen.dart';
+import 'package:financas/screens/categories_screen.dart';
+import 'package:financas/screens/dashboard_screen.dart';
+import 'package:financas/screens/expense_form_screen.dart';
+import 'package:financas/screens/expenses_screen.dart';
+import 'package:financas/screens/import_csv_screen.dart';
+import 'package:flutter/material.dart';
+
+class HomeShell extends StatefulWidget {
+  const HomeShell({super.key});
+
+  @override
+  State<HomeShell> createState() => _HomeShellState();
+}
+
+class _HomeShellState extends State<HomeShell> {
+  int _index = 0;
+
+  static const _titles = ['Visão geral', 'Gastos', 'Categorias', 'Cartões'];
+
+  @override
+  Widget build(BuildContext context) {
+    final pages = [
+      const DashboardScreen(),
+      const ExpensesScreen(),
+      const CategoriesScreen(),
+      const CardsScreen(),
+    ];
+
+    final wide = MediaQuery.sizeOf(context).width >= 900;
+
+    final content = Scaffold(
+      appBar: AppBar(
+        title: Text(_titles[_index]),
+        actions: [
+          IconButton(
+            tooltip: 'Importar CSV',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const ImportCsvScreen()),
+              );
+            },
+            icon: const Icon(Icons.upload_file_outlined),
+          ),
+          const SizedBox(width: 4),
+        ],
+      ),
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1100),
+            child: pages[_index],
+          ),
+        ),
+      ),
+      floatingActionButton: _index == 1 || _index == 0
+          ? FloatingActionButton.extended(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ExpenseFormScreen()),
+                );
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('Novo gasto'),
+            )
+          : null,
+      bottomNavigationBar: wide
+          ? null
+          : NavigationBar(
+              selectedIndex: _index,
+              onDestinationSelected: (value) => setState(() => _index = value),
+              destinations: const [
+                NavigationDestination(
+                  icon: Icon(Icons.pie_chart_outline),
+                  selectedIcon: Icon(Icons.pie_chart),
+                  label: 'Visão',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.receipt_long_outlined),
+                  selectedIcon: Icon(Icons.receipt_long),
+                  label: 'Gastos',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.category_outlined),
+                  selectedIcon: Icon(Icons.category),
+                  label: 'Categorias',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.credit_card_outlined),
+                  selectedIcon: Icon(Icons.credit_card),
+                  label: 'Cartões',
+                ),
+              ],
+            ),
+    );
+
+    if (!wide) return content;
+
+    return Scaffold(
+      body: Row(
+        children: [
+          NavigationRail(
+            selectedIndex: _index,
+            onDestinationSelected: (value) => setState(() => _index = value),
+            labelType: NavigationRailLabelType.all,
+            destinations: const [
+              NavigationRailDestination(
+                icon: Icon(Icons.pie_chart_outline),
+                selectedIcon: Icon(Icons.pie_chart),
+                label: Text('Visão'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.receipt_long_outlined),
+                selectedIcon: Icon(Icons.receipt_long),
+                label: Text('Gastos'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.category_outlined),
+                selectedIcon: Icon(Icons.category),
+                label: Text('Categorias'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.credit_card_outlined),
+                selectedIcon: Icon(Icons.credit_card),
+                label: Text('Cartões'),
+              ),
+            ],
+          ),
+          const VerticalDivider(width: 1),
+          Expanded(child: content),
+        ],
+      ),
+    );
+  }
+}
