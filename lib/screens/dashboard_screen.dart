@@ -1,4 +1,5 @@
 import 'package:financas/providers/finance_providers.dart';
+import 'package:financas/screens/debtors_screen.dart';
 import 'package:financas/utils/app_info.dart';
 import 'package:financas/utils/formatters.dart';
 import 'package:financas/widgets/category_totals_chart.dart';
@@ -10,6 +11,17 @@ import 'package:google_fonts/google_fonts.dart';
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
 
+  void _openDebtors(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          appBar: AppBar(title: const Text('Devedores')),
+          body: const DebtorsScreen(),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final month = ref.watch(selectedMonthProvider);
@@ -20,6 +32,10 @@ class DashboardScreen extends ConsumerWidget {
     final cardFilter = ref.watch(expenseFilterCardProvider);
     final newTotal = ref.watch(statementNewPurchasesTotalProvider);
     final carryTotal = ref.watch(statementCarryoversTotalProvider);
+    final incomeTotal = ref.watch(monthlyIncomeTotalProvider);
+    final debtors = ref.watch(debtorRankingProvider);
+    final topDebtors = debtors.take(5).toList();
+    final debtorTotal = ref.watch(debtorTotalOwedProvider);
     final scheme = Theme.of(context).colorScheme;
 
     return ListView(
@@ -147,6 +163,96 @@ class DashboardScreen extends ConsumerWidget {
               ),
             ],
           ),
+        ],
+        const SizedBox(height: 16),
+        Card(
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundColor: scheme.secondary.withValues(alpha: 0.15),
+              foregroundColor: scheme.secondary,
+              child: const Icon(Icons.trending_up),
+            ),
+            title: Text(
+              'Receitas do mês',
+              style: GoogleFonts.dmSans(fontWeight: FontWeight.w600),
+            ),
+            subtitle: Text(
+              'Entradas em ${capitalize(monthYearFormat.format(month))}',
+            ),
+            trailing: Text(
+              formatCurrency(incomeTotal),
+              style: GoogleFonts.fraunces(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Maiores devedores',
+                style: GoogleFonts.fraunces(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () => _openDebtors(context),
+              child: const Text('Ver todos'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (topDebtors.isEmpty)
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Text(
+                'Nenhum valor a receber. Cadastre em Mais → Devedores.',
+                style: Theme.of(context).textTheme.bodyMedium,
+                textAlign: TextAlign.center,
+              ),
+            ),
+          )
+        else ...[
+          Card(
+            color: scheme.tertiaryContainer.withValues(alpha: 0.35),
+            child: ListTile(
+              title: const Text('Total a receber'),
+              trailing: Text(
+                formatCurrency(debtorTotal),
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          ...topDebtors.asMap().entries.map((entry) {
+            final rank = entry.key + 1;
+            final debtor = entry.value;
+            return Card(
+              margin: const EdgeInsets.only(bottom: 8),
+              child: ListTile(
+                onTap: () => _openDebtors(context),
+                leading: CircleAvatar(
+                  backgroundColor: scheme.tertiary.withValues(alpha: 0.15),
+                  foregroundColor: scheme.tertiary,
+                  child: Text('$rank'),
+                ),
+                title: Text(debtor.name),
+                subtitle: debtor.notes == null || debtor.notes!.isEmpty
+                    ? null
+                    : Text(debtor.notes!),
+                trailing: Text(
+                  formatCurrency(debtor.amountOwed),
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+            );
+          }),
         ],
         const SizedBox(height: 24),
         Text(

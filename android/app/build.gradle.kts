@@ -11,6 +11,8 @@ android {
     namespace = "com.financas.financas"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
+    // 36.0.0 no SDK local está corrompido; 36.1.0 e 37.0.0 estão ok.
+    buildToolsVersion = "36.1.0"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

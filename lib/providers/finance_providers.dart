@@ -1,7 +1,9 @@
 import 'package:financas/data/finance_repository.dart';
 import 'package:financas/models/category.dart';
 import 'package:financas/models/credit_card.dart';
+import 'package:financas/models/debtor.dart';
 import 'package:financas/models/expense.dart';
+import 'package:financas/models/income.dart';
 import 'package:financas/services/auth_service.dart';
 import 'package:financas/services/firestore_sync_service.dart';
 import 'package:financas/utils/formatters.dart';
@@ -252,4 +254,81 @@ final monthlyTotalsProvider = Provider<List<CategoryTotal>>((ref) {
 
 final monthlyTotalAmountProvider = Provider<double>((ref) {
   return ref.watch(filteredExpensesProvider).fold(0.0, (sum, e) => sum + e.amount);
+});
+
+final debtorsProvider =
+    StateNotifierProvider<DebtorsNotifier, List<Debtor>>((ref) {
+  ref.watch(sessionReadyProvider);
+  return DebtorsNotifier(ref.watch(repositoryProvider));
+});
+
+class DebtorsNotifier extends StateNotifier<List<Debtor>> {
+  DebtorsNotifier(this._repo) : super([]) {
+    refresh();
+  }
+
+  final FinanceRepository _repo;
+
+  void refresh() => state = _repo.getDebtors();
+
+  Future<void> save(Debtor debtor) async {
+    await _repo.saveDebtor(debtor);
+    refresh();
+  }
+
+  Future<void> delete(String id) async {
+    await _repo.deleteDebtor(id);
+    refresh();
+  }
+}
+
+final debtorRankingProvider = Provider<List<Debtor>>((ref) {
+  final debtors = ref.watch(debtorsProvider);
+  return debtors.where((d) => d.amountOwed > 0).toList();
+});
+
+final debtorTotalOwedProvider = Provider<double>((ref) {
+  return ref
+      .watch(debtorRankingProvider)
+      .fold(0.0, (sum, d) => sum + d.amountOwed);
+});
+
+final incomesProvider =
+    StateNotifierProvider<IncomesNotifier, List<Income>>((ref) {
+  ref.watch(sessionReadyProvider);
+  return IncomesNotifier(ref.watch(repositoryProvider));
+});
+
+class IncomesNotifier extends StateNotifier<List<Income>> {
+  IncomesNotifier(this._repo) : super([]) {
+    refresh();
+  }
+
+  final FinanceRepository _repo;
+
+  void refresh() => state = _repo.getIncomes();
+
+  Future<void> save(Income income) async {
+    await _repo.saveIncome(income);
+    refresh();
+  }
+
+  Future<void> delete(String id) async {
+    await _repo.deleteIncome(id);
+    refresh();
+  }
+}
+
+final monthIncomesProvider = Provider<List<Income>>((ref) {
+  final incomes = ref.watch(incomesProvider);
+  final month = ref.watch(selectedMonthProvider);
+  return incomes
+      .where((income) => isSameMonth(income.date, month))
+      .toList();
+});
+
+final monthlyIncomeTotalProvider = Provider<double>((ref) {
+  return ref
+      .watch(monthIncomesProvider)
+      .fold(0.0, (sum, i) => sum + i.amount);
 });

@@ -4,12 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class MonthSelector extends ConsumerWidget {
-  const MonthSelector({super.key});
+  const MonthSelector({super.key, this.invoiceAware = true});
+
+  /// Quando false, mostra só o mês (útil em Entradas).
+  final bool invoiceAware;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final month = ref.watch(selectedMonthProvider);
-    final invoiceView = ref.watch(invoiceViewProvider);
+    final invoiceView = invoiceAware && ref.watch(invoiceViewProvider);
 
     return Row(
       children: [
