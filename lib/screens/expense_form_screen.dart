@@ -24,6 +24,7 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
   late DateTime _date;
   String? _categoryId;
   String? _cardId;
+  DateTime? _statementDueMonth;
   int _installmentCount = 1;
 
   bool get isEditing => widget.expense != null;
@@ -42,6 +43,14 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
     _categoryId = expense?.categoryId;
     _cardId = expense?.cardId;
     _installmentCount = expense?.installmentTotal ?? 1;
+    // Se a fatura foi perdida numa edição anterior, usa o mês selecionado na lista.
+    final due = expense?.statementDueMonth;
+    if (due != null) {
+      _statementDueMonth = DateTime(due.year, due.month);
+    } else if (expense != null) {
+      final selected = ref.read(selectedMonthProvider);
+      _statementDueMonth = DateTime(selected.year, selected.month);
+    }
   }
 
   @override
@@ -62,12 +71,32 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
     if (picked != null) setState(() => _date = picked);
   }
 
+  Future<void> _pickStatementMonth() async {
+    final initial = _statementDueMonth ?? DateTime(_date.year, _date.month);
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(2018),
+      lastDate: DateTime.now().add(const Duration(days: 365 * 3)),
+      locale: const Locale('pt', 'BR'),
+      helpText: 'Mês de vencimento da fatura',
+    );
+    if (picked != null) {
+      setState(() => _statementDueMonth = DateTime(picked.year, picked.month));
+    }
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     final categories = ref.read(categoriesProvider);
     final categoryId = _categoryId ?? categories.first.id;
     final amount = parseBrazilianAmount(_amount.text);
     if (amount == null) return;
+
+    final statementDue = _statementDueMonth ??
+        (isEditing || _cardId != null
+            ? DateTime(_date.year, _date.month)
+            : null);
 
     final base = Expense(
       id: widget.expense?.id ?? const Uuid().v4(),
@@ -80,6 +109,7 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
       installmentGroupId: widget.expense?.installmentGroupId,
       installmentNumber: widget.expense?.installmentNumber,
       installmentTotal: widget.expense?.installmentTotal,
+      statementDueMonth: statementDue,
     );
 
     if (isEditing) {
@@ -152,10 +182,30 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
                 const SizedBox(height: 16),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('Data da 1ª parcela'),
+                  title: Text(
+                    isEditing ? 'Data da compra' : 'Data da 1ª parcela',
+                  ),
                   subtitle: Text(formatDate(_date)),
                   trailing: const Icon(Icons.calendar_today_outlined),
                   onTap: _pickDate,
+                ),
+                const SizedBox(height: 8),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Mês da fatura'),
+                  subtitle: Text(
+                    _statementDueMonth == null
+                        ? 'Usar mês da data da compra'
+                        : capitalize(
+                            monthYearFormat.format(_statementDueMonth!),
+                          ),
+                  ),
+                  trailing: const Icon(Icons.calendar_month_outlined),
+                  onTap: _pickStatementMonth,
+                ),
+                Text(
+                  'Define em qual fatura o gasto aparece (pode diferir da data da compra).',
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
@@ -189,7 +239,13 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
                       ),
                     ),
                   ],
-                  onChanged: (value) => setState(() => _cardId = value),
+                  onChanged: (value) => setState(() {
+                    _cardId = value;
+                    if (value != null && _statementDueMonth == null) {
+                      _statementDueMonth =
+                          DateTime(_date.year, _date.month);
+                    }
+                  }),
                 ),
                 if (!isEditing) ...[
                   const SizedBox(height: 16),

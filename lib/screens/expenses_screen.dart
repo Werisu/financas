@@ -32,7 +32,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final expenses = ref.watch(filteredExpensesProvider);
+    final expenses = ref.watch(expensesListProvider);
     final categories = ref.watch(categoriesProvider);
     final cards = ref.watch(cardsProvider);
     final categoryFilter = ref.watch(expenseFilterCategoryProvider);
@@ -160,7 +160,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                '${expenses.length} resultado(s) para "$searchQuery"',
+                '${expenses.length} resultado(s) em todos os meses para "$searchQuery"',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
