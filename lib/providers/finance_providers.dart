@@ -148,6 +148,7 @@ final invoiceViewProvider = StateProvider<bool>((ref) => true);
 
 final expenseFilterCategoryProvider = StateProvider<String?>((ref) => null);
 final expenseFilterCardProvider = StateProvider<String?>((ref) => null);
+final expenseSearchQueryProvider = StateProvider<String>((ref) => '');
 
 final monthExpensesProvider = Provider<List<Expense>>((ref) {
   final expenses = ref.watch(expensesProvider);
@@ -165,10 +166,15 @@ final filteredExpensesProvider = Provider<List<Expense>>((ref) {
   final expenses = ref.watch(monthExpensesProvider);
   final categoryId = ref.watch(expenseFilterCategoryProvider);
   final cardId = ref.watch(expenseFilterCardProvider);
+  final query = ref.watch(expenseSearchQueryProvider).trim().toLowerCase();
 
   return expenses.where((expense) {
     if (categoryId != null && expense.categoryId != categoryId) return false;
     if (cardId != null && expense.cardId != cardId) return false;
+    if (query.isNotEmpty &&
+        !expense.description.toLowerCase().contains(query)) {
+      return false;
+    }
     return true;
   }).toList();
 });
