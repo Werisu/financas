@@ -36,7 +36,7 @@ class _ImportCsvScreenState extends ConsumerState<ImportCsvScreen> {
   }
 
   Future<void> _pickFile() async {
-    final result = await FilePicker.pickFiles(
+    final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: const ['csv', 'txt'],
       withData: true,

@@ -8,31 +8,41 @@ class AppTheme {
   static const ink = Color(0xFF102A27);
 
   static ThemeData light() {
-    final base = ColorScheme.fromSeed(
+    final colorScheme = ColorScheme.fromSeed(
       seedColor: seed,
       brightness: Brightness.light,
       surface: surface,
+    ).copyWith(
+      primary: seed,
+      secondary: const Color(0xFF1D4E4A),
+      tertiary: const Color(0xFFC45C26),
     );
 
-    final textTheme = GoogleFonts.dmSansTextTheme().apply(
+    // Base do Material primeiro — evita que o Google Fonts
+    // sobrescreva a família usada pelos ícones (MaterialIcons).
+    final base = ThemeData(
+      useMaterial3: true,
+      colorScheme: colorScheme,
+      scaffoldBackgroundColor: background,
+      iconTheme: const IconThemeData(color: ink),
+      primaryIconTheme: const IconThemeData(color: ink),
+    );
+
+    final textTheme = GoogleFonts.dmSansTextTheme(base.textTheme).apply(
       bodyColor: ink,
       displayColor: ink,
     );
 
-    return ThemeData(
-      useMaterial3: true,
-      colorScheme: base.copyWith(
-        primary: seed,
-        secondary: const Color(0xFF1D4E4A),
-        tertiary: const Color(0xFFC45C26),
-      ),
-      scaffoldBackgroundColor: background,
+    return base.copyWith(
       textTheme: textTheme,
+      primaryTextTheme: GoogleFonts.dmSansTextTheme(base.primaryTextTheme),
       appBarTheme: AppBarTheme(
         backgroundColor: background,
         foregroundColor: ink,
         elevation: 0,
         centerTitle: false,
+        iconTheme: const IconThemeData(color: ink),
+        actionsIconTheme: const IconThemeData(color: ink),
         titleTextStyle: GoogleFonts.fraunces(
           fontSize: 24,
           fontWeight: FontWeight.w600,
@@ -70,6 +80,14 @@ class AppTheme {
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: surface,
         indicatorColor: seed.withValues(alpha: 0.12),
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          return IconThemeData(
+            size: 24,
+            color: states.contains(WidgetState.selected)
+                ? seed
+                : ink.withValues(alpha: 0.7),
+          );
+        }),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           return GoogleFonts.dmSans(
             fontSize: 12,
@@ -78,6 +96,25 @@ class AppTheme {
                 : FontWeight.w500,
           );
         }),
+      ),
+      navigationRailTheme: NavigationRailThemeData(
+        backgroundColor: surface,
+        indicatorColor: seed.withValues(alpha: 0.12),
+        selectedIconTheme: const IconThemeData(color: seed, size: 24),
+        unselectedIconTheme: IconThemeData(
+          color: ink.withValues(alpha: 0.7),
+          size: 24,
+        ),
+        selectedLabelTextStyle: GoogleFonts.dmSans(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: ink,
+        ),
+        unselectedLabelTextStyle: GoogleFonts.dmSans(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: ink.withValues(alpha: 0.7),
+        ),
       ),
     );
   }

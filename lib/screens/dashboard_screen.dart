@@ -3,6 +3,7 @@ import 'package:financas/screens/debtors_screen.dart';
 import 'package:financas/utils/app_info.dart';
 import 'package:financas/utils/formatters.dart';
 import 'package:financas/widgets/category_totals_chart.dart';
+import 'package:financas/widgets/debtor_ranking_panel.dart';
 import 'package:financas/widgets/month_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -34,7 +35,6 @@ class DashboardScreen extends ConsumerWidget {
     final carryTotal = ref.watch(statementCarryoversTotalProvider);
     final incomeTotal = ref.watch(monthlyIncomeTotalProvider);
     final debtors = ref.watch(debtorRankingProvider);
-    final topDebtors = debtors.take(5).toList();
     final debtorTotal = ref.watch(debtorTotalOwedProvider);
     final scheme = Theme.of(context).colorScheme;
 
@@ -189,71 +189,11 @@ class DashboardScreen extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 24),
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                'Maiores devedores',
-                style: GoogleFonts.fraunces(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            TextButton(
-              onPressed: () => _openDebtors(context),
-              child: const Text('Ver todos'),
-            ),
-          ],
+        DebtorRankingPanel(
+          debtors: debtors,
+          totalOwed: debtorTotal,
+          onSeeAll: () => _openDebtors(context),
         ),
-        const SizedBox(height: 8),
-        if (topDebtors.isEmpty)
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Text(
-                'Nenhum valor a receber. Cadastre em Mais → Devedores.',
-                style: Theme.of(context).textTheme.bodyMedium,
-                textAlign: TextAlign.center,
-              ),
-            ),
-          )
-        else ...[
-          Card(
-            color: scheme.tertiaryContainer.withValues(alpha: 0.35),
-            child: ListTile(
-              title: const Text('Total a receber'),
-              trailing: Text(
-                formatCurrency(debtorTotal),
-                style: const TextStyle(fontWeight: FontWeight.w700),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          ...topDebtors.asMap().entries.map((entry) {
-            final rank = entry.key + 1;
-            final debtor = entry.value;
-            return Card(
-              margin: const EdgeInsets.only(bottom: 8),
-              child: ListTile(
-                onTap: () => _openDebtors(context),
-                leading: CircleAvatar(
-                  backgroundColor: scheme.tertiary.withValues(alpha: 0.15),
-                  foregroundColor: scheme.tertiary,
-                  child: Text('$rank'),
-                ),
-                title: Text(debtor.name),
-                subtitle: debtor.notes == null || debtor.notes!.isEmpty
-                    ? null
-                    : Text(debtor.notes!),
-                trailing: Text(
-                  formatCurrency(debtor.amountOwed),
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-              ),
-            );
-          }),
-        ],
         const SizedBox(height: 24),
         Text(
           'Onde estou gastando',
