@@ -105,4 +105,5 @@ class AppDatabase {
   static Box<Income> get incomes => Hive.box<Income>(HiveBoxes.incomes);
   static Box<CardPayment> get cardPayments =>
       Hive.box<CardPayment>(HiveBoxes.cardPayments);
+  static Box get meta => Hive.box(HiveBoxes.meta);
 }
