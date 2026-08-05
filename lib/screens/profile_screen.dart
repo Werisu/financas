@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:financas/providers/biometric_providers.dart';
 import 'package:financas/providers/finance_providers.dart';
 import 'package:financas/services/profile_service.dart';
 import 'package:financas/theme/app_theme.dart';
@@ -85,6 +86,34 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       setState(() => _error = e.toString().replaceFirst('Bad state: ', ''));
     } finally {
       if (mounted) setState(() => _uploadingPhoto = false);
+    }
+  }
+
+  Future<void> _toggleBiometric(bool value) async {
+    final messenger = ScaffoldMessenger.of(context);
+    if (value) {
+      final ok = await ref.read(biometricEnabledProvider.notifier).enable();
+      if (!mounted) return;
+      if (ok) {
+        ref.read(appLockedProvider.notifier).unlock();
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Desbloqueio por digital ativado.'),
+          ),
+        );
+      } else {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Não foi possível ativar a biometria.'),
+          ),
+        );
+      }
+    } else {
+      await ref.read(biometricEnabledProvider.notifier).disable();
+      if (!mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Desbloqueio por digital desativado.')),
+      );
     }
   }
 
@@ -228,6 +257,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     labelText: 'E-mail',
                   ),
                 ),
+                const SizedBox(height: 24),
+                _BiometricToggle(onChanged: _toggleBiometric),
                 if (_error != null) ...[
                   const SizedBox(height: 12),
                   Text(
@@ -260,5 +291,68 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (parts.isEmpty || parts.first.isEmpty) return '?';
     if (parts.length == 1) return parts.first[0].toUpperCase();
     return (parts.first[0] + parts.last[0]).toUpperCase();
+  }
+}
+
+class _BiometricToggle extends ConsumerWidget {
+  const _BiometricToggle({required this.onChanged});
+
+  final Future<void> Function(bool value) onChanged;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final available = ref.watch(biometricAvailableProvider);
+    final enabled = ref.watch(biometricEnabledProvider);
+    final scheme = Theme.of(context).colorScheme;
+
+    return available.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, _) => const SizedBox.shrink(),
+      data: (canUse) {
+        if (!canUse) {
+          return Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.fingerprint,
+                    color: AppTheme.ink.withValues(alpha: 0.35),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Biometria indisponível neste dispositivo',
+                      style: GoogleFonts.dmSans(
+                        color: AppTheme.ink.withValues(alpha: 0.55),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        return Card(
+          child: SwitchListTile(
+            value: enabled,
+            onChanged: (value) => onChanged(value),
+            secondary: Icon(Icons.fingerprint, color: scheme.primary),
+            title: Text(
+              'Desbloquear com digital',
+              style: GoogleFonts.dmSans(fontWeight: FontWeight.w600),
+            ),
+            subtitle: Text(
+              'Peça a digital ou o PIN do celular ao abrir o app',
+              style: GoogleFonts.dmSans(
+                fontSize: 13,
+                color: AppTheme.ink.withValues(alpha: 0.55),
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:financas/providers/finance_providers.dart';
+import 'package:financas/screens/biometric_lock_screen.dart';
 import 'package:financas/screens/home_shell.dart';
 import 'package:financas/screens/login_screen.dart';
 import 'package:flutter/material.dart';
@@ -63,7 +64,7 @@ class AuthGate extends ConsumerWidget {
               ),
             ),
           ),
-          data: (_) => const HomeShell(),
+          data: (_) => const AppLockGate(child: HomeShell()),
         );
       },
     );
