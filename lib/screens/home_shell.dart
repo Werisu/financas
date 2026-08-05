@@ -1,3 +1,4 @@
+import 'package:financas/providers/biometric_providers.dart';
 import 'package:financas/providers/finance_providers.dart';
 import 'package:financas/screens/dashboard_screen.dart';
 import 'package:financas/screens/expense_form_screen.dart';
@@ -26,12 +27,16 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   static const _titles = ['Visão geral', 'Gastos', 'Entradas', 'Mais'];
 
   Future<void> _signOut() async {
+    final hasSaved =
+        ref.read(savedLoginProvider).asData?.value != null;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Sair da conta?'),
-        content: const Text(
-          'Seus dados continuam salvos na nuvem. Você poderá entrar novamente depois.',
+        content: Text(
+          hasSaved
+              ? 'Seus dados continuam na nuvem. Na próxima vez você pode entrar de novo com a digital.'
+              : 'Seus dados continuam salvos na nuvem. Você poderá entrar novamente depois.',
         ),
         actions: [
           TextButton(
@@ -47,6 +52,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     );
     if (confirm == true) {
       await ref.read(authServiceProvider).signOut();
+      ref.invalidate(savedLoginProvider);
     }
   }
 

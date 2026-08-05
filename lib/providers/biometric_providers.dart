@@ -1,4 +1,6 @@
+import 'package:financas/providers/finance_providers.dart';
 import 'package:financas/services/biometric_service.dart';
+import 'package:financas/services/saved_login_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final biometricServiceProvider = Provider<BiometricService>((ref) {
@@ -7,6 +9,10 @@ final biometricServiceProvider = Provider<BiometricService>((ref) {
 
 final biometricAvailableProvider = FutureProvider<bool>((ref) {
   return ref.watch(biometricServiceProvider).canUseBiometrics();
+});
+
+final savedLoginProvider = FutureProvider<SavedLogin?>((ref) {
+  return ref.watch(authServiceProvider).savedLogin.read();
 });
 
 /// Preferência salva localmente (Hive).
@@ -20,11 +26,13 @@ class BiometricEnabledNotifier extends StateNotifier<bool> {
 
   final BiometricService _service;
 
-  Future<bool> enable() async {
-    final ok = await _service.authenticate(
-      reason: 'Confirme para ativar o desbloqueio por digital',
-    );
-    if (!ok) return false;
+  Future<bool> enable({bool requirePrompt = true}) async {
+    if (requirePrompt) {
+      final ok = await _service.authenticate(
+        reason: 'Confirme para ativar o desbloqueio por digital',
+      );
+      if (!ok) return false;
+    }
     await _service.setEnabled(true);
     state = true;
     return true;

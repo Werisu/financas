@@ -3,8 +3,10 @@ import 'dart:typed_data';
 import 'package:financas/providers/biometric_providers.dart';
 import 'package:financas/providers/finance_providers.dart';
 import 'package:financas/services/profile_service.dart';
+import 'package:financas/services/saved_login_service.dart';
 import 'package:financas/theme/app_theme.dart';
 import 'package:financas/utils/profile_image.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -115,6 +117,87 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         const SnackBar(content: Text('Desbloqueio por digital desativado.')),
       );
     }
+  }
+
+  Future<void> _saveEmailLogin() async {
+    final user = ref.read(authServiceProvider).currentUser;
+    final email = user?.email;
+    if (email == null) return;
+
+    final password = await showDialog<String>(
+      context: context,
+      builder: (context) => const _ConfirmPasswordDialog(),
+    );
+    if (password == null || password.isEmpty || !mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    final auth = ref.read(authServiceProvider);
+    try {
+      final credential = EmailAuthProvider.credential(
+        email: email,
+        password: password,
+      );
+      await user!.reauthenticateWithCredential(credential);
+      await auth.saveLoginAfterSignIn(
+        provider: SavedLoginProvider.email,
+        email: email,
+        password: password,
+      );
+      await ref
+          .read(biometricEnabledProvider.notifier)
+          .enable(requirePrompt: false);
+      ref.invalidate(savedLoginProvider);
+      if (!mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Login salvo. Após sair, entre com a digital.'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text(auth.mapError(e))),
+      );
+    }
+  }
+
+  Future<void> _saveGoogleLogin() async {
+    final user = ref.read(authServiceProvider).currentUser;
+    final email = user?.email;
+    if (email == null) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    final auth = ref.read(authServiceProvider);
+    try {
+      await auth.saveLoginAfterSignIn(
+        provider: SavedLoginProvider.google,
+        email: email,
+      );
+      await ref
+          .read(biometricEnabledProvider.notifier)
+          .enable(requirePrompt: false);
+      ref.invalidate(savedLoginProvider);
+      if (!mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Login salvo. Após sair, entre com a digital.'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text(auth.mapError(e))),
+      );
+    }
+  }
+
+  Future<void> _forgetSavedLogin() async {
+    await ref.read(authServiceProvider).forgetSavedLogin();
+    ref.invalidate(savedLoginProvider);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Login salvo removido deste aparelho.')),
+    );
   }
 
   Future<void> _saveProfile() async {
@@ -259,6 +342,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
                 const SizedBox(height: 24),
                 _BiometricToggle(onChanged: _toggleBiometric),
+                const SizedBox(height: 12),
+                _SavedLoginCard(
+                  onSaveEmail: _saveEmailLogin,
+                  onSaveGoogle: _saveGoogleLogin,
+                  onForget: _forgetSavedLogin,
+                ),
                 if (_error != null) ...[
                   const SizedBox(height: 12),
                   Text(
@@ -353,6 +442,138 @@ class _BiometricToggle extends ConsumerWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _SavedLoginCard extends ConsumerWidget {
+  const _SavedLoginCard({
+    required this.onSaveEmail,
+    required this.onSaveGoogle,
+    required this.onForget,
+  });
+
+  final Future<void> Function() onSaveEmail;
+  final Future<void> Function() onSaveGoogle;
+  final Future<void> Function() onForget;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final available = ref.watch(biometricAvailableProvider);
+    final saved = ref.watch(savedLoginProvider);
+    final user = ref.watch(authStateProvider).asData?.value;
+    final scheme = Theme.of(context).colorScheme;
+    final canUse = available.asData?.value ?? false;
+
+    if (!canUse) return const SizedBox.shrink();
+
+    final savedLogin = saved.asData?.value;
+    final isGoogle = user?.providerData.any(
+          (p) => p.providerId == 'google.com',
+        ) ??
+        false;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.phonelink_lock_outlined, color: scheme.primary),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Salvar login neste aparelho',
+                        style: GoogleFonts.dmSans(fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        savedLogin == null
+                            ? 'Depois de sair, entre de novo só com a digital'
+                            : 'Salvo: ${savedLogin.email}',
+                        style: GoogleFonts.dmSans(
+                          fontSize: 13,
+                          color: AppTheme.ink.withValues(alpha: 0.55),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: savedLogin == null
+                  ? TextButton(
+                      onPressed: isGoogle ? onSaveGoogle : onSaveEmail,
+                      child: const Text('Salvar login'),
+                    )
+                  : TextButton(
+                      onPressed: onForget,
+                      child: const Text('Esquecer login'),
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ConfirmPasswordDialog extends StatefulWidget {
+  const _ConfirmPasswordDialog();
+
+  @override
+  State<_ConfirmPasswordDialog> createState() => _ConfirmPasswordDialogState();
+}
+
+class _ConfirmPasswordDialogState extends State<_ConfirmPasswordDialog> {
+  final _controller = TextEditingController();
+  bool _obscure = true;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Confirmar senha'),
+      content: TextField(
+        controller: _controller,
+        obscureText: _obscure,
+        autofocus: true,
+        decoration: InputDecoration(
+          labelText: 'Senha da conta',
+          suffixIcon: IconButton(
+            onPressed: () => setState(() => _obscure = !_obscure),
+            icon: Icon(
+              _obscure
+                  ? Icons.visibility_outlined
+                  : Icons.visibility_off_outlined,
+            ),
+          ),
+        ),
+        onSubmitted: (value) => Navigator.pop(context, value),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, _controller.text),
+          child: const Text('Salvar'),
+        ),
+      ],
     );
   }
 }

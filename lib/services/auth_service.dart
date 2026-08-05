@@ -1,3 +1,4 @@
+import 'package:financas/services/saved_login_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -6,12 +7,17 @@ class AuthService {
   AuthService({
     FirebaseAuth? auth,
     GoogleSignIn? googleSignIn,
+    SavedLoginService? savedLogin,
   })  : _auth = auth ?? FirebaseAuth.instance,
-        _googleSignIn = googleSignIn ?? GoogleSignIn.instance;
+        _googleSignIn = googleSignIn ?? GoogleSignIn.instance,
+        _savedLogin = savedLogin ?? SavedLoginService();
 
   final FirebaseAuth _auth;
   final GoogleSignIn _googleSignIn;
+  final SavedLoginService _savedLogin;
   bool _googleInitialized = false;
+
+  SavedLoginService get savedLogin => _savedLogin;
 
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
@@ -58,8 +64,60 @@ class AuthService {
     return _auth.signInWithCredential(credential);
   }
 
-  Future<void> signOut() async {
-    if (!kIsWeb) {
+  Future<UserCredential?> _signInWithGoogleLightweight() async {
+    if (kIsWeb) return null;
+    await _ensureGoogleInitialized();
+    final future = _googleSignIn.attemptLightweightAuthentication();
+    if (future == null) return null;
+    final account = await future;
+    if (account == null) return null;
+    final idToken = account.authentication.idToken;
+    if (idToken == null) return null;
+    final credential = GoogleAuthProvider.credential(idToken: idToken);
+    return _auth.signInWithCredential(credential);
+  }
+
+  Future<UserCredential> signInWithSavedLogin(SavedLogin login) async {
+    switch (login.provider) {
+      case SavedLoginProvider.email:
+        final password = login.password;
+        if (password == null || password.isEmpty) {
+          throw StateError('Login salvo incompleto. Entre com e-mail e senha.');
+        }
+        return signInWithEmail(email: login.email, password: password);
+      case SavedLoginProvider.google:
+        final light = await _signInWithGoogleLightweight();
+        if (light != null) return light;
+        return signInWithGoogle();
+    }
+  }
+
+  Future<void> saveLoginAfterSignIn({
+    required SavedLoginProvider provider,
+    required String email,
+    String? password,
+  }) async {
+    if (provider == SavedLoginProvider.email) {
+      if (password == null || password.isEmpty) {
+        throw StateError('Senha necessária para salvar o login.');
+      }
+      await _savedLogin.saveEmail(email: email, password: password);
+    } else {
+      await _savedLogin.saveGoogle(email: email);
+    }
+  }
+
+  Future<void> forgetSavedLogin() => _savedLogin.clear();
+
+  Future<void> signOut({bool forgetSavedLogin = false}) async {
+    if (forgetSavedLogin) {
+      await _savedLogin.clear();
+    }
+
+    final saved = forgetSavedLogin ? null : await _savedLogin.read();
+    final keepGoogleSession = saved?.provider == SavedLoginProvider.google;
+
+    if (!kIsWeb && !keepGoogleSession) {
       try {
         await _ensureGoogleInitialized();
         await _googleSignIn.signOut();
