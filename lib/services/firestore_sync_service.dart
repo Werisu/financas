@@ -1,8 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:financas/data/category_seeds.dart';
+import 'package:financas/models/card_payment.dart';
 import 'package:financas/models/category.dart';
 import 'package:financas/models/credit_card.dart';
+import 'package:financas/models/debtor.dart';
 import 'package:financas/models/expense.dart';
+import 'package:financas/models/income.dart';
 
 class FirestoreSyncService {
   FirestoreSyncService({FirebaseFirestore? firestore})
@@ -87,6 +90,33 @@ class FirestoreSyncService {
     }).toList();
   }
 
+  Future<List<Debtor>> fetchDebtors(String uid) async {
+    final snap = await _col(uid, 'debtors').get();
+    return snap.docs.map((doc) {
+      final data = Map<String, dynamic>.from(doc.data());
+      data['id'] = doc.id;
+      return Debtor.fromMap(data);
+    }).toList();
+  }
+
+  Future<List<Income>> fetchIncomes(String uid) async {
+    final snap = await _col(uid, 'incomes').get();
+    return snap.docs.map((doc) {
+      final data = Map<String, dynamic>.from(doc.data());
+      data['id'] = doc.id;
+      return Income.fromMap(data);
+    }).toList();
+  }
+
+  Future<List<CardPayment>> fetchCardPayments(String uid) async {
+    final snap = await _col(uid, 'card_payments').get();
+    return snap.docs.map((doc) {
+      final data = Map<String, dynamic>.from(doc.data());
+      data['id'] = doc.id;
+      return CardPayment.fromMap(data);
+    }).toList();
+  }
+
   Future<void> seedDefaultCategories(String uid) async {
     final batch = _db.batch();
     for (final category in CategorySeeds.defaults()) {
@@ -135,6 +165,30 @@ class FirestoreSyncService {
     return _col(uid, 'expenses').doc(id).delete();
   }
 
+  Future<void> upsertDebtor(String uid, Debtor debtor) {
+    return _col(uid, 'debtors').doc(debtor.id).set(debtor.toMap());
+  }
+
+  Future<void> deleteDebtor(String uid, String id) {
+    return _col(uid, 'debtors').doc(id).delete();
+  }
+
+  Future<void> upsertIncome(String uid, Income income) {
+    return _col(uid, 'incomes').doc(income.id).set(income.toMap());
+  }
+
+  Future<void> deleteIncome(String uid, String id) {
+    return _col(uid, 'incomes').doc(id).delete();
+  }
+
+  Future<void> upsertCardPayment(String uid, CardPayment payment) {
+    return _col(uid, 'card_payments').doc(payment.id).set(payment.toMap());
+  }
+
+  Future<void> deleteCardPayment(String uid, String id) {
+    return _col(uid, 'card_payments').doc(id).delete();
+  }
+
   Future<void> clearCollection(String uid, String name) async {
     while (true) {
       final snap = await _col(uid, name).limit(400).get();
@@ -150,6 +204,7 @@ class FirestoreSyncService {
 
   Future<void> resetFinancialData(String uid) async {
     await clearCollection(uid, 'expenses');
+    await clearCollection(uid, 'card_payments');
   }
 }
 

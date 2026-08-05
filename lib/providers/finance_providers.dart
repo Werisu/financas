@@ -1,7 +1,10 @@
 import 'package:financas/data/finance_repository.dart';
+import 'package:financas/models/card_payment.dart';
 import 'package:financas/models/category.dart';
 import 'package:financas/models/credit_card.dart';
+import 'package:financas/models/debtor.dart';
 import 'package:financas/models/expense.dart';
+import 'package:financas/models/income.dart';
 import 'package:financas/services/auth_service.dart';
 import 'package:financas/services/firestore_sync_service.dart';
 import 'package:financas/utils/formatters.dart';
@@ -252,4 +255,205 @@ final monthlyTotalsProvider = Provider<List<CategoryTotal>>((ref) {
 
 final monthlyTotalAmountProvider = Provider<double>((ref) {
   return ref.watch(filteredExpensesProvider).fold(0.0, (sum, e) => sum + e.amount);
+});
+
+final debtorsProvider =
+    StateNotifierProvider<DebtorsNotifier, List<Debtor>>((ref) {
+  ref.watch(sessionReadyProvider);
+  return DebtorsNotifier(ref.watch(repositoryProvider));
+});
+
+class DebtorsNotifier extends StateNotifier<List<Debtor>> {
+  DebtorsNotifier(this._repo) : super([]) {
+    refresh();
+  }
+
+  final FinanceRepository _repo;
+
+  void refresh() => state = _repo.getDebtors();
+
+  Future<void> save(Debtor debtor) async {
+    await _repo.saveDebtor(debtor);
+    refresh();
+  }
+
+  Future<void> delete(String id) async {
+    await _repo.deleteDebtor(id);
+    refresh();
+  }
+}
+
+final debtorRankingProvider = Provider<List<Debtor>>((ref) {
+  final debtors = ref.watch(debtorsProvider);
+  return debtors.where((d) => d.amountOwed > 0).toList();
+});
+
+final debtorTotalOwedProvider = Provider<double>((ref) {
+  return ref
+      .watch(debtorRankingProvider)
+      .fold(0.0, (sum, d) => sum + d.amountOwed);
+});
+
+final incomesProvider =
+    StateNotifierProvider<IncomesNotifier, List<Income>>((ref) {
+  ref.watch(sessionReadyProvider);
+  return IncomesNotifier(ref.watch(repositoryProvider));
+});
+
+class IncomesNotifier extends StateNotifier<List<Income>> {
+  IncomesNotifier(this._repo) : super([]) {
+    refresh();
+  }
+
+  final FinanceRepository _repo;
+
+  void refresh() => state = _repo.getIncomes();
+
+  Future<void> save(Income income) async {
+    await _repo.saveIncome(income);
+    refresh();
+  }
+
+  Future<void> delete(String id) async {
+    await _repo.deleteIncome(id);
+    refresh();
+  }
+}
+
+final monthIncomesProvider = Provider<List<Income>>((ref) {
+  final incomes = ref.watch(incomesProvider);
+  final month = ref.watch(selectedMonthProvider);
+  return incomes
+      .where((income) => isSameMonth(income.date, month))
+      .toList();
+});
+
+final monthlyIncomeTotalProvider = Provider<double>((ref) {
+  return ref
+      .watch(monthIncomesProvider)
+      .fold(0.0, (sum, i) => sum + i.amount);
+});
+
+final cardPaymentsProvider =
+    StateNotifierProvider<CardPaymentsNotifier, List<CardPayment>>((ref) {
+  ref.watch(sessionReadyProvider);
+  return CardPaymentsNotifier(ref.watch(repositoryProvider));
+});
+
+class CardPaymentsNotifier extends StateNotifier<List<CardPayment>> {
+  CardPaymentsNotifier(this._repo) : super([]) {
+    refresh();
+  }
+
+  final FinanceRepository _repo;
+
+  void refresh() => state = _repo.getCardPayments();
+
+  Future<void> save(CardPayment payment) async {
+    await _repo.saveCardPayment(payment);
+    refresh();
+  }
+
+  Future<void> delete(String id) async {
+    await _repo.deleteCardPayment(id);
+    refresh();
+  }
+}
+
+/// Pagamentos da fatura do mês selecionado (e cartão filtrado, se houver).
+final monthCardPaymentsProvider = Provider<List<CardPayment>>((ref) {
+  final payments = ref.watch(cardPaymentsProvider);
+  final month = ref.watch(selectedMonthProvider);
+  final cardId = ref.watch(expenseFilterCardProvider);
+
+  return payments.where((payment) {
+    if (!isSameMonth(payment.billingMonth, month)) return false;
+    if (cardId != null && payment.cardId != cardId) return false;
+    return true;
+  }).toList();
+});
+
+final monthCardPaymentsTotalProvider = Provider<double>((ref) {
+  return ref
+      .watch(monthCardPaymentsProvider)
+      .fold(0.0, (sum, p) => sum + p.amount);
+});
+
+enum StatementPaymentStatus { open, partial, paid, overpaid }
+
+class StatementPaymentSummary {
+  StatementPaymentSummary({
+    required this.cardId,
+    required this.statementTotal,
+    required this.paidAmount,
+  });
+
+  final String? cardId;
+  final double statementTotal;
+  final double paidAmount;
+
+  double get remaining => statementTotal - paidAmount;
+
+  StatementPaymentStatus get status {
+    if (paidAmount <= 0.009) return StatementPaymentStatus.open;
+    if (remaining < -0.009) return StatementPaymentStatus.overpaid;
+    if (remaining <= 0.009) return StatementPaymentStatus.paid;
+    return StatementPaymentStatus.partial;
+  }
+
+  bool get hasActivity => statementTotal > 0.009 || paidAmount > 0.009;
+}
+
+/// Resumo de pagamento da fatura atual (respeita filtro de cartão).
+final statementPaymentSummaryProvider = Provider<StatementPaymentSummary>((ref) {
+  final total = ref.watch(monthlyTotalAmountProvider);
+  final paid = ref.watch(monthCardPaymentsTotalProvider);
+  final cardId = ref.watch(expenseFilterCardProvider);
+  return StatementPaymentSummary(
+    cardId: cardId,
+    statementTotal: total,
+    paidAmount: paid,
+  );
+});
+
+/// Resumo por cartão no mês da fatura selecionada.
+final statementPaymentByCardProvider =
+    Provider<List<StatementPaymentSummary>>((ref) {
+  final month = ref.watch(selectedMonthProvider);
+  final expenses = ref.watch(monthExpensesProvider);
+  final payments = ref.watch(cardPaymentsProvider);
+  final cards = ref.watch(cardsProvider);
+
+  final totals = <String, double>{};
+  for (final expense in expenses) {
+    final id = expense.cardId;
+    if (id == null) continue;
+    totals[id] = (totals[id] ?? 0) + expense.amount;
+  }
+
+  final paid = <String, double>{};
+  for (final payment in payments) {
+    if (!isSameMonth(payment.billingMonth, month)) continue;
+    paid[payment.cardId] = (paid[payment.cardId] ?? 0) + payment.amount;
+  }
+
+  final cardIds = <String>{
+    ...totals.keys,
+    ...paid.keys,
+    ...cards.map((c) => c.id),
+  };
+
+  final summaries = cardIds
+      .map(
+        (id) => StatementPaymentSummary(
+          cardId: id,
+          statementTotal: totals[id] ?? 0,
+          paidAmount: paid[id] ?? 0,
+        ),
+      )
+      .where((s) => s.hasActivity)
+      .toList();
+
+  summaries.sort((a, b) => b.remaining.compareTo(a.remaining));
+  return summaries;
 });

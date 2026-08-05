@@ -1,10 +1,11 @@
 import 'package:financas/providers/finance_providers.dart';
-import 'package:financas/screens/cards_screen.dart';
-import 'package:financas/screens/categories_screen.dart';
 import 'package:financas/screens/dashboard_screen.dart';
 import 'package:financas/screens/expense_form_screen.dart';
 import 'package:financas/screens/expenses_screen.dart';
 import 'package:financas/screens/import_csv_screen.dart';
+import 'package:financas/screens/income_form_screen.dart';
+import 'package:financas/screens/incomes_screen.dart';
+import 'package:financas/screens/more_screen.dart';
 import 'package:financas/screens/profile_screen.dart';
 import 'package:financas/utils/app_info.dart';
 import 'package:financas/utils/profile_image.dart';
@@ -22,7 +23,7 @@ class HomeShell extends ConsumerStatefulWidget {
 class _HomeShellState extends ConsumerState<HomeShell> {
   int _index = 0;
 
-  static const _titles = ['Visão geral', 'Gastos', 'Categorias', 'Cartões'];
+  static const _titles = ['Visão geral', 'Gastos', 'Entradas', 'Mais'];
 
   Future<void> _signOut() async {
     final confirm = await showDialog<bool>(
@@ -61,9 +62,9 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       builder: (context) => AlertDialog(
         title: const Text('Resetar lançamentos?'),
         content: const Text(
-          'Isso apaga permanentemente todos os gastos lançados '
+          'Isso apaga permanentemente todos os gastos e pagamentos de fatura '
           '(no aparelho e na nuvem).\n\n'
-          'Categorias, cartões e perfil serão mantidos.\n\n'
+          'Categorias, cartões, entradas, devedores e perfil serão mantidos.\n\n'
           'Essa ação não pode ser desfeita.',
         ),
         actions: [
@@ -103,7 +104,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
 
     try {
       await ref.read(expensesProvider.notifier).resetAll();
-      ref.invalidate(expensesProvider);
+      ref.read(cardPaymentsProvider.notifier).refresh();
       if (!mounted) return;
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -118,6 +119,32 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     }
   }
 
+  Widget? _buildFab() {
+    if (_index == 0 || _index == 1) {
+      return FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const ExpenseFormScreen()),
+          );
+        },
+        icon: const Icon(Icons.add),
+        label: const Text('Novo gasto'),
+      );
+    }
+    if (_index == 2) {
+      return FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const IncomeFormScreen()),
+          );
+        },
+        icon: const Icon(Icons.add),
+        label: const Text('Nova entrada'),
+      );
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authStateProvider).asData?.value;
@@ -125,14 +152,15 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     final pages = [
       const DashboardScreen(),
       const ExpensesScreen(),
-      const CategoriesScreen(),
-      const CardsScreen(),
+      const IncomesScreen(),
+      const MoreScreen(),
     ];
 
     final wide = MediaQuery.sizeOf(context).width >= 900;
-    final label = (profile?.displayName ?? user?.displayName)?.trim().isNotEmpty == true
-        ? (profile?.displayName ?? user!.displayName!)
-        : (user?.email ?? 'Conta');
+    final label =
+        (profile?.displayName ?? user?.displayName)?.trim().isNotEmpty == true
+            ? (profile?.displayName ?? user!.displayName!)
+            : (user?.email ?? 'Conta');
     final avatarImage = profileImageProvider(
       photoBase64: profile?.photoBase64,
       photoUrl: profile?.photoUrl ?? user?.photoURL,
@@ -253,17 +281,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
           ),
         ),
       ),
-      floatingActionButton: _index == 1 || _index == 0
-          ? FloatingActionButton.extended(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const ExpenseFormScreen()),
-                );
-              },
-              icon: const Icon(Icons.add),
-              label: const Text('Novo gasto'),
-            )
-          : null,
+      floatingActionButton: _buildFab(),
       bottomNavigationBar: wide
           ? null
           : NavigationBar(
@@ -281,14 +299,14 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                   label: 'Gastos',
                 ),
                 NavigationDestination(
-                  icon: Icon(Icons.category_outlined),
-                  selectedIcon: Icon(Icons.category),
-                  label: 'Categorias',
+                  icon: Icon(Icons.trending_up_outlined),
+                  selectedIcon: Icon(Icons.trending_up),
+                  label: 'Entradas',
                 ),
                 NavigationDestination(
-                  icon: Icon(Icons.credit_card_outlined),
-                  selectedIcon: Icon(Icons.credit_card),
-                  label: 'Cartões',
+                  icon: Icon(Icons.more_horiz),
+                  selectedIcon: Icon(Icons.more_horiz),
+                  label: 'Mais',
                 ),
               ],
             ),
@@ -315,14 +333,14 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                 label: Text('Gastos'),
               ),
               NavigationRailDestination(
-                icon: Icon(Icons.category_outlined),
-                selectedIcon: Icon(Icons.category),
-                label: Text('Categorias'),
+                icon: Icon(Icons.trending_up_outlined),
+                selectedIcon: Icon(Icons.trending_up),
+                label: Text('Entradas'),
               ),
               NavigationRailDestination(
-                icon: Icon(Icons.credit_card_outlined),
-                selectedIcon: Icon(Icons.credit_card),
-                label: Text('Cartões'),
+                icon: Icon(Icons.more_horiz),
+                selectedIcon: Icon(Icons.more_horiz),
+                label: Text('Mais'),
               ),
             ],
           ),

@@ -1,14 +1,28 @@
 import 'package:financas/providers/finance_providers.dart';
+import 'package:financas/screens/debtors_screen.dart';
 import 'package:financas/utils/app_info.dart';
 import 'package:financas/utils/formatters.dart';
 import 'package:financas/widgets/category_totals_chart.dart';
+import 'package:financas/widgets/debtor_ranking_panel.dart';
 import 'package:financas/widgets/month_selector.dart';
+import 'package:financas/widgets/statement_payment_panel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
+
+  void _openDebtors(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          appBar: AppBar(title: const Text('Devedores')),
+          body: const DebtorsScreen(),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -20,6 +34,9 @@ class DashboardScreen extends ConsumerWidget {
     final cardFilter = ref.watch(expenseFilterCardProvider);
     final newTotal = ref.watch(statementNewPurchasesTotalProvider);
     final carryTotal = ref.watch(statementCarryoversTotalProvider);
+    final incomeTotal = ref.watch(monthlyIncomeTotalProvider);
+    final debtors = ref.watch(debtorRankingProvider);
+    final debtorTotal = ref.watch(debtorTotalOwedProvider);
     final scheme = Theme.of(context).colorScheme;
 
     return ListView(
@@ -148,6 +165,40 @@ class DashboardScreen extends ConsumerWidget {
             ],
           ),
         ],
+        if (invoiceView) ...[
+          const SizedBox(height: 16),
+          const StatementPaymentPanel(),
+        ],
+        const SizedBox(height: 16),
+        Card(
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundColor: scheme.secondary.withValues(alpha: 0.15),
+              foregroundColor: scheme.secondary,
+              child: const Icon(Icons.trending_up),
+            ),
+            title: Text(
+              'Receitas do mês',
+              style: GoogleFonts.dmSans(fontWeight: FontWeight.w600),
+            ),
+            subtitle: Text(
+              'Entradas em ${capitalize(monthYearFormat.format(month))}',
+            ),
+            trailing: Text(
+              formatCurrency(incomeTotal),
+              style: GoogleFonts.fraunces(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+        DebtorRankingPanel(
+          debtors: debtors,
+          totalOwed: debtorTotal,
+          onSeeAll: () => _openDebtors(context),
+        ),
         const SizedBox(height: 24),
         Text(
           'Onde estou gastando',

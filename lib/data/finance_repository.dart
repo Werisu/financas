@@ -1,8 +1,11 @@
 import 'package:financas/data/app_database.dart';
 import 'package:financas/data/category_seeds.dart';
+import 'package:financas/models/card_payment.dart';
 import 'package:financas/models/category.dart';
 import 'package:financas/models/credit_card.dart';
+import 'package:financas/models/debtor.dart';
 import 'package:financas/models/expense.dart';
+import 'package:financas/models/income.dart';
 import 'package:financas/services/firestore_sync_service.dart';
 
 class FinanceRepository {
@@ -71,11 +74,17 @@ class FinanceRepository {
 
     final cards = await _sync.fetchCards(uid);
     final expenses = await _sync.fetchExpenses(uid);
+    final debtors = await _sync.fetchDebtors(uid);
+    final incomes = await _sync.fetchIncomes(uid);
+    final cardPayments = await _sync.fetchCardPayments(uid);
 
     await AppDatabase.replaceAll(
       categories: categories,
       cards: cards,
       expenses: expenses,
+      debtors: debtors,
+      incomes: incomes,
+      cardPayments: cardPayments,
     );
   }
 
@@ -140,6 +149,60 @@ class FinanceRepository {
     if (uid != null) await _sync.deleteExpense(uid, id);
   }
 
+  List<Debtor> getDebtors() {
+    final items = AppDatabase.debtors.values.toList()
+      ..sort((a, b) => b.amountOwed.compareTo(a.amountOwed));
+    return items;
+  }
+
+  Future<void> saveDebtor(Debtor debtor) async {
+    await AppDatabase.debtors.put(debtor.id, debtor);
+    final uid = _uid;
+    if (uid != null) await _sync.upsertDebtor(uid, debtor);
+  }
+
+  Future<void> deleteDebtor(String id) async {
+    await AppDatabase.debtors.delete(id);
+    final uid = _uid;
+    if (uid != null) await _sync.deleteDebtor(uid, id);
+  }
+
+  List<Income> getIncomes() {
+    final items = AppDatabase.incomes.values.toList()
+      ..sort((a, b) => b.date.compareTo(a.date));
+    return items;
+  }
+
+  Future<void> saveIncome(Income income) async {
+    await AppDatabase.incomes.put(income.id, income);
+    final uid = _uid;
+    if (uid != null) await _sync.upsertIncome(uid, income);
+  }
+
+  Future<void> deleteIncome(String id) async {
+    await AppDatabase.incomes.delete(id);
+    final uid = _uid;
+    if (uid != null) await _sync.deleteIncome(uid, id);
+  }
+
+  List<CardPayment> getCardPayments() {
+    final items = AppDatabase.cardPayments.values.toList()
+      ..sort((a, b) => b.date.compareTo(a.date));
+    return items;
+  }
+
+  Future<void> saveCardPayment(CardPayment payment) async {
+    await AppDatabase.cardPayments.put(payment.id, payment);
+    final uid = _uid;
+    if (uid != null) await _sync.upsertCardPayment(uid, payment);
+  }
+
+  Future<void> deleteCardPayment(String id) async {
+    await AppDatabase.cardPayments.delete(id);
+    final uid = _uid;
+    if (uid != null) await _sync.deleteCardPayment(uid, id);
+  }
+
   /// Apaga somente os gastos/lançamentos (local + nuvem).
   Future<void> resetAllAccounts() async {
     final uid = _uid;
@@ -147,5 +210,6 @@ class FinanceRepository {
       await _sync.resetFinancialData(uid);
     }
     await AppDatabase.expenses.clear();
+    await AppDatabase.cardPayments.clear();
   }
 }

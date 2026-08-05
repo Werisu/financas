@@ -1,16 +1,19 @@
 plugins {
     id("com.android.application")
     // START: FlutterFire Configuration
-    id("com.google.gms.google-services")
+    id("org.jetbrains.kotlin.android")
     // END: FlutterFire Configuration
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
+    id("com.google.gms.google-services")
     id("dev.flutter.flutter-gradle-plugin")
 }
 
 android {
     namespace = "com.financas.financas"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
+    // 36.0.0 no SDK local está corrompido; 36.1.0 e 37.0.0 estão ok.
+    buildToolsVersion = "36.1.0"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
