@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:financas/data/category_seeds.dart';
+import 'package:financas/models/card_payment.dart';
 import 'package:financas/models/category.dart';
 import 'package:financas/models/credit_card.dart';
 import 'package:financas/models/debtor.dart';
@@ -107,6 +108,15 @@ class FirestoreSyncService {
     }).toList();
   }
 
+  Future<List<CardPayment>> fetchCardPayments(String uid) async {
+    final snap = await _col(uid, 'card_payments').get();
+    return snap.docs.map((doc) {
+      final data = Map<String, dynamic>.from(doc.data());
+      data['id'] = doc.id;
+      return CardPayment.fromMap(data);
+    }).toList();
+  }
+
   Future<void> seedDefaultCategories(String uid) async {
     final batch = _db.batch();
     for (final category in CategorySeeds.defaults()) {
@@ -171,6 +181,14 @@ class FirestoreSyncService {
     return _col(uid, 'incomes').doc(id).delete();
   }
 
+  Future<void> upsertCardPayment(String uid, CardPayment payment) {
+    return _col(uid, 'card_payments').doc(payment.id).set(payment.toMap());
+  }
+
+  Future<void> deleteCardPayment(String uid, String id) {
+    return _col(uid, 'card_payments').doc(id).delete();
+  }
+
   Future<void> clearCollection(String uid, String name) async {
     while (true) {
       final snap = await _col(uid, name).limit(400).get();
@@ -186,6 +204,7 @@ class FirestoreSyncService {
 
   Future<void> resetFinancialData(String uid) async {
     await clearCollection(uid, 'expenses');
+    await clearCollection(uid, 'card_payments');
   }
 }
 

@@ -62,7 +62,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       builder: (context) => AlertDialog(
         title: const Text('Resetar lançamentos?'),
         content: const Text(
-          'Isso apaga permanentemente todos os gastos lançados '
+          'Isso apaga permanentemente todos os gastos e pagamentos de fatura '
           '(no aparelho e na nuvem).\n\n'
           'Categorias, cartões, entradas, devedores e perfil serão mantidos.\n\n'
           'Essa ação não pode ser desfeita.',
@@ -104,7 +104,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
 
     try {
       await ref.read(expensesProvider.notifier).resetAll();
-      ref.invalidate(expensesProvider);
+      ref.read(cardPaymentsProvider.notifier).refresh();
       if (!mounted) return;
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(

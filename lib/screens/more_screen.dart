@@ -1,3 +1,4 @@
+import 'package:financas/screens/card_payments_screen.dart';
 import 'package:financas/screens/cards_screen.dart';
 import 'package:financas/screens/categories_screen.dart';
 import 'package:financas/screens/debtors_screen.dart';
@@ -45,6 +46,18 @@ class MoreScreen extends StatelessWidget {
             context,
             title: 'Cartões',
             page: const CardsScreen(),
+          ),
+        ),
+        const SizedBox(height: 10),
+        _MoreTile(
+          icon: Icons.payments_outlined,
+          color: scheme.primary,
+          title: 'Pagamentos de fatura',
+          subtitle: 'Total ou parcial dos cartões',
+          onTap: () => _open(
+            context,
+            title: 'Pagamentos de fatura',
+            page: const CardPaymentsScreen(),
           ),
         ),
         const SizedBox(height: 10),

@@ -1,4 +1,5 @@
 import 'package:financas/data/finance_repository.dart';
+import 'package:financas/models/card_payment.dart';
 import 'package:financas/models/category.dart';
 import 'package:financas/models/credit_card.dart';
 import 'package:financas/models/debtor.dart';
@@ -331,4 +332,128 @@ final monthlyIncomeTotalProvider = Provider<double>((ref) {
   return ref
       .watch(monthIncomesProvider)
       .fold(0.0, (sum, i) => sum + i.amount);
+});
+
+final cardPaymentsProvider =
+    StateNotifierProvider<CardPaymentsNotifier, List<CardPayment>>((ref) {
+  ref.watch(sessionReadyProvider);
+  return CardPaymentsNotifier(ref.watch(repositoryProvider));
+});
+
+class CardPaymentsNotifier extends StateNotifier<List<CardPayment>> {
+  CardPaymentsNotifier(this._repo) : super([]) {
+    refresh();
+  }
+
+  final FinanceRepository _repo;
+
+  void refresh() => state = _repo.getCardPayments();
+
+  Future<void> save(CardPayment payment) async {
+    await _repo.saveCardPayment(payment);
+    refresh();
+  }
+
+  Future<void> delete(String id) async {
+    await _repo.deleteCardPayment(id);
+    refresh();
+  }
+}
+
+/// Pagamentos da fatura do mês selecionado (e cartão filtrado, se houver).
+final monthCardPaymentsProvider = Provider<List<CardPayment>>((ref) {
+  final payments = ref.watch(cardPaymentsProvider);
+  final month = ref.watch(selectedMonthProvider);
+  final cardId = ref.watch(expenseFilterCardProvider);
+
+  return payments.where((payment) {
+    if (!isSameMonth(payment.billingMonth, month)) return false;
+    if (cardId != null && payment.cardId != cardId) return false;
+    return true;
+  }).toList();
+});
+
+final monthCardPaymentsTotalProvider = Provider<double>((ref) {
+  return ref
+      .watch(monthCardPaymentsProvider)
+      .fold(0.0, (sum, p) => sum + p.amount);
+});
+
+enum StatementPaymentStatus { open, partial, paid, overpaid }
+
+class StatementPaymentSummary {
+  StatementPaymentSummary({
+    required this.cardId,
+    required this.statementTotal,
+    required this.paidAmount,
+  });
+
+  final String? cardId;
+  final double statementTotal;
+  final double paidAmount;
+
+  double get remaining => statementTotal - paidAmount;
+
+  StatementPaymentStatus get status {
+    if (paidAmount <= 0.009) return StatementPaymentStatus.open;
+    if (remaining < -0.009) return StatementPaymentStatus.overpaid;
+    if (remaining <= 0.009) return StatementPaymentStatus.paid;
+    return StatementPaymentStatus.partial;
+  }
+
+  bool get hasActivity => statementTotal > 0.009 || paidAmount > 0.009;
+}
+
+/// Resumo de pagamento da fatura atual (respeita filtro de cartão).
+final statementPaymentSummaryProvider = Provider<StatementPaymentSummary>((ref) {
+  final total = ref.watch(monthlyTotalAmountProvider);
+  final paid = ref.watch(monthCardPaymentsTotalProvider);
+  final cardId = ref.watch(expenseFilterCardProvider);
+  return StatementPaymentSummary(
+    cardId: cardId,
+    statementTotal: total,
+    paidAmount: paid,
+  );
+});
+
+/// Resumo por cartão no mês da fatura selecionada.
+final statementPaymentByCardProvider =
+    Provider<List<StatementPaymentSummary>>((ref) {
+  final month = ref.watch(selectedMonthProvider);
+  final expenses = ref.watch(monthExpensesProvider);
+  final payments = ref.watch(cardPaymentsProvider);
+  final cards = ref.watch(cardsProvider);
+
+  final totals = <String, double>{};
+  for (final expense in expenses) {
+    final id = expense.cardId;
+    if (id == null) continue;
+    totals[id] = (totals[id] ?? 0) + expense.amount;
+  }
+
+  final paid = <String, double>{};
+  for (final payment in payments) {
+    if (!isSameMonth(payment.billingMonth, month)) continue;
+    paid[payment.cardId] = (paid[payment.cardId] ?? 0) + payment.amount;
+  }
+
+  final cardIds = <String>{
+    ...totals.keys,
+    ...paid.keys,
+    ...cards.map((c) => c.id),
+  };
+
+  final summaries = cardIds
+      .map(
+        (id) => StatementPaymentSummary(
+          cardId: id,
+          statementTotal: totals[id] ?? 0,
+          paidAmount: paid[id] ?? 0,
+        ),
+      )
+      .where((s) => s.hasActivity)
+      .toList();
+
+  summaries.sort((a, b) => b.remaining.compareTo(a.remaining));
+  return summaries;
 });

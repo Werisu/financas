@@ -1,4 +1,5 @@
 import 'package:financas/data/category_seeds.dart';
+import 'package:financas/models/card_payment.dart';
 import 'package:financas/models/category.dart';
 import 'package:financas/models/credit_card.dart';
 import 'package:financas/models/debtor.dart';
@@ -12,6 +13,7 @@ class HiveBoxes {
   static const expenses = 'expenses';
   static const debtors = 'debtors';
   static const incomes = 'incomes';
+  static const cardPayments = 'card_payments';
   static const meta = 'meta';
 }
 
@@ -35,6 +37,9 @@ class AppDatabase {
     if (!Hive.isAdapterRegistered(4)) {
       Hive.registerAdapter(IncomeAdapter());
     }
+    if (!Hive.isAdapterRegistered(5)) {
+      Hive.registerAdapter(CardPaymentAdapter());
+    }
 
     await Future.wait([
       Hive.openBox<Category>(HiveBoxes.categories),
@@ -42,6 +47,7 @@ class AppDatabase {
       Hive.openBox<Expense>(HiveBoxes.expenses),
       Hive.openBox<Debtor>(HiveBoxes.debtors),
       Hive.openBox<Income>(HiveBoxes.incomes),
+      Hive.openBox<CardPayment>(HiveBoxes.cardPayments),
       Hive.openBox(HiveBoxes.meta),
     ]);
   }
@@ -52,6 +58,7 @@ class AppDatabase {
     await expenses.clear();
     await debtors.clear();
     await incomes.clear();
+    await cardPayments.clear();
   }
 
   static Future<void> replaceAll({
@@ -60,6 +67,7 @@ class AppDatabase {
     required List<Expense> expenses,
     required List<Debtor> debtors,
     required List<Income> incomes,
+    required List<CardPayment> cardPayments,
   }) async {
     await clearUserData();
     await AppDatabase.categories.putAll({
@@ -77,6 +85,9 @@ class AppDatabase {
     await AppDatabase.incomes.putAll({
       for (final item in incomes) item.id: item,
     });
+    await AppDatabase.cardPayments.putAll({
+      for (final item in cardPayments) item.id: item,
+    });
   }
 
   static Future<void> seedLocalCategoriesIfEmpty() async {
@@ -92,4 +103,6 @@ class AppDatabase {
   static Box<Expense> get expenses => Hive.box<Expense>(HiveBoxes.expenses);
   static Box<Debtor> get debtors => Hive.box<Debtor>(HiveBoxes.debtors);
   static Box<Income> get incomes => Hive.box<Income>(HiveBoxes.incomes);
+  static Box<CardPayment> get cardPayments =>
+      Hive.box<CardPayment>(HiveBoxes.cardPayments);
 }

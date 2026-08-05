@@ -5,6 +5,7 @@ import 'package:financas/utils/formatters.dart';
 import 'package:financas/widgets/category_totals_chart.dart';
 import 'package:financas/widgets/debtor_ranking_panel.dart';
 import 'package:financas/widgets/month_selector.dart';
+import 'package:financas/widgets/statement_payment_panel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -163,6 +164,10 @@ class DashboardScreen extends ConsumerWidget {
               ),
             ],
           ),
+        ],
+        if (invoiceView) ...[
+          const SizedBox(height: 16),
+          const StatementPaymentPanel(),
         ],
         const SizedBox(height: 16),
         Card(
