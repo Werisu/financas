@@ -14,65 +14,122 @@ class CategoryTotalsChart extends StatelessWidget {
       return const SizedBox(height: 180, child: Center(child: Text('Sem dados')));
     }
 
-    return SizedBox(
-      height: 220,
-      child: Row(
-        children: [
-          Expanded(
-            child: PieChart(
-              PieChartData(
-                sectionsSpace: 2,
-                centerSpaceRadius: 42,
-                sections: totals.map((item) {
-                  final percent = item.total / totalAmount;
-                  return PieChartSectionData(
-                    color: item.category.color,
-                    value: item.total,
-                    title: percent >= 0.08
-                        ? '${(percent * 100).round()}%'
-                        : '',
-                    radius: 52,
-                    titleStyle: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 12,
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: ListView(
-              children: totals.take(6).map((item) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 10,
-                        height: 10,
-                        decoration: BoxDecoration(
-                          color: item.category.color,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          item.category.name,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
+    final sections = totals.map((item) {
+      final percent = item.total / totalAmount;
+      return PieChartSectionData(
+        color: item.category.color,
+        value: item.total,
+        title: percent >= 0.08 ? '${(percent * 100).round()}%' : '',
+        radius: 52,
+        titleStyle: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w700,
+          fontSize: 12,
+        ),
+      );
+    }).toList();
+
+    final legend = _Legend(
+      totals: totals.take(6).toList(),
+      totalAmount: totalAmount,
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stacked = constraints.maxWidth < 420;
+
+        if (stacked) {
+          return Column(
+            children: [
+              SizedBox(
+                height: 200,
+                width: double.infinity,
+                child: PieChart(
+                  PieChartData(
+                    sectionsSpace: 2,
+                    centerSpaceRadius: 42,
+                    sections: sections,
                   ),
-                );
-              }).toList(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              legend,
+            ],
+          );
+        }
+
+        return SizedBox(
+          height: 220,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                flex: 5,
+                child: PieChart(
+                  PieChartData(
+                    sectionsSpace: 2,
+                    centerSpaceRadius: 42,
+                    sections: sections,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(flex: 4, child: legend),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _Legend extends StatelessWidget {
+  const _Legend({required this.totals, required this.totalAmount});
+
+  final List<CategoryTotal> totals;
+  final double totalAmount;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final item in totals)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 5),
+            child: Row(
+              children: [
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: item.category.color,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    item.category.name,
+                    overflow: TextOverflow.ellipsis,
+                    style: textTheme.bodyMedium,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '${((item.total / totalAmount) * 100).round()}%',
+                  style: textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: textTheme.bodySmall?.color?.withValues(alpha: 0.7),
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
-      ),
+      ],
     );
   }
 }
